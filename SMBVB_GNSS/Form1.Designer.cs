@@ -115,6 +115,7 @@
             btnConnect.Size = new System.Drawing.Size(43, 23);
             btnConnect.TabIndex = 6;
             btnConnect.Text = "연결";
+            btnConnect.Click += btnConnect_Click;
             // 
             // btnDisconnect
             // 

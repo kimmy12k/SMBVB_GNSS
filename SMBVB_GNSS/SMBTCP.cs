@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,10 +17,10 @@ namespace SMBV100B_GNSS
         private const int COMMAND_DELAY_MS = 50;// AI said -> RST(장비 초기화)후 대기 → 명시 없음 (관례상 500ms)/   
 
 
-        public bool IsConnected => 
-            _client != null && _client.Connected &&_reader != null;
+        public bool IsConnected =>
+            _client != null && _client.Connected && _reader != null;
 
-        private async Task ConnectAsync(string ip , int port , int timeoutMs)
+        private async Task ConnectAsync(string ip, int port, int timeoutMs)
         {
             _client = new TcpClient();
             _client.ReceiveTimeout = timeoutMs;
@@ -50,8 +49,8 @@ namespace SMBV100B_GNSS
                 _reader = null;
                 _stream = null;
                 _client = null;
-            }   
-    }
+            }
+        }
         public async Task SendAsync(string command)
         {
             if (!IsConnected)
@@ -67,13 +66,12 @@ namespace SMBV100B_GNSS
             return response?.Trim() ?? string.Empty;
         }
 
-
         //장비 식별
-        public async Task<string> GetIdentityAsync() 
+        public async Task<string> GetIdentityAsync()
             => await QueryAsync("*IDN?");
 
         // 설치 옵션 조회
-        public async Task<string> GetOptionsAsync() 
+        public async Task<string> GetOptionsAsync()
             => await QueryAsync("*OPT?");
 
         //장비 초기화 (이후 500ms 대기)
@@ -90,7 +88,6 @@ namespace SMBV100B_GNSS
         public async Task GoToLocalAsync()
             => await SendAsync("&GTL"); //장비 터치스크린이 잠김 (조작 불가)→ 터치스크린 다시 사용 가능→ UDP 수신 가능 상태가 됨
 
-
         public async Task InitGnssAsync(
            string mode,              // "STAT" | "MOV" | "REM"
            double lat,
@@ -103,9 +100,7 @@ namespace SMBV100B_GNSS
             await ResetAsync();       // *RST + 500ms 대기
             await ClearStatusAsync(); // *CLS
 
-            // 2. Navigation 모드 설정
-            //    주의: 모드 먼저 설정 → 그 다음 위성/위치
-            //    (모드 전환 시 위성 파라미터 초기화됨)
+            // 2. Navigation 모드 설정  주의: 모드 먼저 설정 → 그 다음 위성/위치  (모드 전환 시 위성 파라미터 초기화됨)
             await SendAsync(":SOURce1:BB:GNSS:TMODe NAV");
 
             // 3. GPS 활성화
@@ -129,7 +124,6 @@ namespace SMBV100B_GNSS
                 // UDP 포트 설정
                 await SendAsync($":SOURce1:BB:GNSS:RECeiver:V1:HIL:PORT {udpPort}");
 
-                
                 // 시스템 레이턴시 설정 (기본 0.02 = 20ms)
                 await SendAsync(
                     $":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency {latency:F3}");
@@ -141,9 +135,32 @@ namespace SMBV100B_GNSS
             // 8. RF 출력 ON
             await SendAsync(":OUTPut1:STATe 1");
 
-            // 9. &GTL — Remote 상태 해제 (UDP 수신 전 필수)
-            //    매뉴얼 255p: "send the &GTL command after the query"
+            // 9. &GTL — Remote 상태 해제 (UDP 수신 전 필수)  매뉴얼 255p: "send the &GTL command after the query"
             await GoToLocalAsync();
+        }
+
+        public async Task<(double lon, double lat, double alt, double velocity)> GetRpvtAsync()
+        {
+            var now = DateTime.UtcNow;
+            string cmd =
+                $":SOURce1:BB:GNSS:RT:RPVT?" +
+                $" UTC,{now.Year},{now.Month},{now.Day}," +
+                $"{now.Hour},{now.Minute},{now.Second:F3}";
+
+            string response = await QueryAsync(cmd);
+
+            // 응답: "lon,lat,alt,velocity"
+            var parts = response.Split(',');
+            if (parts.Length >= 4 &&
+                double.TryParse(parts[0], out double lon) &&
+                double.TryParse(parts[1], out double lat) &&
+                double.TryParse(parts[2], out double alt) &&
+                double.TryParse(parts[3], out double vel))
+            {
+                return (lon, lat, alt, vel);
+            }
+
+            throw new FormatException($"RPVT 응답 파싱 실패: {response}");
         }
 
 
