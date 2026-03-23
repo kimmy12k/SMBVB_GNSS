@@ -138,32 +138,24 @@ namespace SMBVB_GNSS
             await GoToLocalAsync();
         }
 
-        // K109가 없을 때  ECEF -> WGS84
-        //public async Task<(double lon, double lat, double alt, double velocity)> GetRpvtAsync()
-        //{
-        //    var now = DateTime.UtcNow;
-        //    string cmd =
-        //        $":SOURce1:BB:GNSS:RT:RPVT?" +
-        //        $" UTC,{now.Year},{now.Month},{now.Day}," +
-        //        $"{now.Hour},{now.Minute},{now.Second:F3}";
-
-        //    string response = await QueryAsync(cmd);
-
-        //    // 응답: "lon,lat,alt,velocity"
-        //    var parts = response.Split(',');
-        //    if (parts.Length >= 4 &&
-        //        double.TryParse(parts[0], out double lon) &&
-        //        double.TryParse(parts[1], out double lat) &&
-        //        double.TryParse(parts[2], out double alt) &&
-        //        double.TryParse(parts[3], out double vel))
-        //    {
-        //        return (lon, lat, alt, vel);
-        //    }
-
-        //    throw new FormatException($"RPVT 응답 파싱 실패: {response}");
-        //}
-
-
+      
+        // PDOP 조회 (위성 정밀도 지표) 매뉴얼 514p / PDOP < 5 이면 양호
+        public async Task<double> GetPdopAsync()
+        {
+            string response = await QueryAsync(":SOURce1:BB:GNSS:RT:PDOP?");
+            return double.TryParse(response, out double pdop) ? pdop : 99.0;
+        }
+        //시뮬레이션 경과 시간 조회 HIL 레이턴시 캘리브레이션에 사용    매뉴얼 264p
+        public async Task<double> GetHwTimeAsync()
+        {
+            string response = await QueryAsync(":SOURce1:BB:GNSS:RT:HWTime?");
+            return double.TryParse(response, out double t) ? t : 0.0;
+        }
+        public async Task StopGnssAsync()
+        {
+            await SendAsync(":SOURce1:BB:GNSS:STATe 0");
+            await SendAsync(":OUTPut1:STATe 0");
+        }
     }
 
 }
