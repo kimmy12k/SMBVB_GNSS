@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace SMBV100B_GNSS
+namespace SMBVB_GNSS
 {
     /// <summary>
     /// INI 파일 읽기/쓰기 유틸리티
@@ -57,9 +57,9 @@ namespace SMBV100B_GNSS
                     int end = line.IndexOf("]");
                     currentSection = line.Substring(1, end - 1).Trim();
 
-                    if (!parser._data.ContainsKey(currentSection))
+                    if (!parser._data.ContainsKey(currentSection))// 해당 단어 없을시  새로 등록
                         parser._data[currentSection] =
-                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);// 키 대소문자 구분 없음
 
                     continue;
                 }
@@ -72,7 +72,7 @@ namespace SMBV100B_GNSS
                 string val = line.Substring(eq + 1);
 
                 // 인라인 주석 제거 (; 또는 # 이후)
-                int commentIdx = IndexOfInlineComment(val);
+                int commentIdx = IndexOfInlineComment(val); 
                 if (commentIdx >= 0)
                     val = val.Substring(0, commentIdx);
 
@@ -80,7 +80,7 @@ namespace SMBV100B_GNSS
 
                 if (string.IsNullOrEmpty(key)) continue;
 
-                if (!parser._data.ContainsKey(currentSection))
+                if (!parser._data.ContainsKey(currentSection))// 섹션이 없으면 자동 생성
                     parser._data[currentSection] =
                         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -148,8 +148,8 @@ namespace SMBV100B_GNSS
         {
             string raw = Get(section, key);
             return double.TryParse(raw,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.NumberStyles.Float, // 소수점 있는 숫자 파싱 허용
+                System.Globalization.CultureInfo.InvariantCulture, // 소수점 구분자를 . 으로 허용
                 out double result) ? result : defaultValue;
         }
 
@@ -175,12 +175,12 @@ namespace SMBV100B_GNSS
             _data[section][key] = value ?? string.Empty;
         }
 
-        public void Set(string section, string key, int value)
+        public void Set(string section, string key, int value) // int를 string으로
             => Set(section, key, value.ToString());
 
-        public void Set(string section, string key, double value)
+        public void Set(string section, string key, double value) // double을 string으로
             => Set(section, key,
-                value.ToString("G", System.Globalization.CultureInfo.InvariantCulture));
+                value.ToString("G", System.Globalization.CultureInfo.InvariantCulture)); //"G"는 일반숫자 형식 / invariantCulture은 소수점 항상 . 으로 저장 
 
         public void Set(string section, string key, bool value)
             => Set(section, key, value ? "true" : "false");

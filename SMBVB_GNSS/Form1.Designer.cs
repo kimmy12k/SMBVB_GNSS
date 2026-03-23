@@ -29,21 +29,21 @@
         private void InitializeComponent()
         {
             grNetwork = new DevExpress.XtraEditors.GroupControl();
-            lblIp = new DevExpress.XtraEditors.LabelControl();
-            textEdit1 = new DevExpress.XtraEditors.TextEdit();
-            lblSCPIPort = new DevExpress.XtraEditors.LabelControl();
-            textEdit2 = new DevExpress.XtraEditors.TextEdit();
-            lblUDPPort = new DevExpress.XtraEditors.LabelControl();
-            textEdit3 = new DevExpress.XtraEditors.TextEdit();
-            btnConnect = new DevExpress.XtraEditors.SimpleButton();
-            btnDisconnect = new DevExpress.XtraEditors.SimpleButton();
             pictureEdit1 = new DevExpress.XtraEditors.PictureEdit();
+            btnDisconnect = new DevExpress.XtraEditors.SimpleButton();
+            btnConnect = new DevExpress.XtraEditors.SimpleButton();
+            textEdit3 = new DevExpress.XtraEditors.TextEdit();
+            lblUDPPort = new DevExpress.XtraEditors.LabelControl();
+            txtScpiPort = new DevExpress.XtraEditors.TextEdit();
+            lblSCPIPort = new DevExpress.XtraEditors.LabelControl();
+            txtIP = new DevExpress.XtraEditors.TextEdit();
+            lblIp = new DevExpress.XtraEditors.LabelControl();
             ((System.ComponentModel.ISupportInitialize)grNetwork).BeginInit();
             grNetwork.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)textEdit1.Properties).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)textEdit2.Properties).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)textEdit3.Properties).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureEdit1.Properties).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)textEdit3.Properties).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)txtScpiPort.Properties).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)txtIP.Properties).BeginInit();
             SuspendLayout();
             // 
             // grNetwork
@@ -53,9 +53,9 @@
             grNetwork.Controls.Add(btnConnect);
             grNetwork.Controls.Add(textEdit3);
             grNetwork.Controls.Add(lblUDPPort);
-            grNetwork.Controls.Add(textEdit2);
+            grNetwork.Controls.Add(txtScpiPort);
             grNetwork.Controls.Add(lblSCPIPort);
-            grNetwork.Controls.Add(textEdit1);
+            grNetwork.Controls.Add(txtIP);
             grNetwork.Controls.Add(lblIp);
             grNetwork.Location = new System.Drawing.Point(12, 12);
             grNetwork.Name = "grNetwork";
@@ -63,50 +63,21 @@
             grNetwork.TabIndex = 0;
             grNetwork.Text = "네트워크 연결";
             // 
-            // lblIp
+            // pictureEdit1
             // 
-            lblIp.Location = new System.Drawing.Point(5, 50);
-            lblIp.Name = "lblIp";
-            lblIp.Size = new System.Drawing.Size(35, 14);
-            lblIp.TabIndex = 0;
-            lblIp.Text = "장비 IP";
+            pictureEdit1.Location = new System.Drawing.Point(517, 40);
+            pictureEdit1.Name = "pictureEdit1";
+            pictureEdit1.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
+            pictureEdit1.Size = new System.Drawing.Size(43, 29);
+            pictureEdit1.TabIndex = 8;
             // 
-            // textEdit1
+            // btnDisconnect
             // 
-            textEdit1.Location = new System.Drawing.Point(46, 47);
-            textEdit1.Name = "textEdit1";
-            textEdit1.Size = new System.Drawing.Size(100, 20);
-            textEdit1.TabIndex = 1;
-            // 
-            // lblSCPIPort
-            // 
-            lblSCPIPort.Location = new System.Drawing.Point(161, 50);
-            lblSCPIPort.Name = "lblSCPIPort";
-            lblSCPIPort.Size = new System.Drawing.Size(52, 14);
-            lblSCPIPort.TabIndex = 2;
-            lblSCPIPort.Text = "SCPI Port";
-            // 
-            // textEdit2
-            // 
-            textEdit2.Location = new System.Drawing.Point(219, 47);
-            textEdit2.Name = "textEdit2";
-            textEdit2.Size = new System.Drawing.Size(44, 20);
-            textEdit2.TabIndex = 3;
-            // 
-            // lblUDPPort
-            // 
-            lblUDPPort.Location = new System.Drawing.Point(269, 50);
-            lblUDPPort.Name = "lblUDPPort";
-            lblUDPPort.Size = new System.Drawing.Size(50, 14);
-            lblUDPPort.TabIndex = 4;
-            lblUDPPort.Text = "UDP Port";
-            // 
-            // textEdit3
-            // 
-            textEdit3.Location = new System.Drawing.Point(325, 47);
-            textEdit3.Name = "textEdit3";
-            textEdit3.Size = new System.Drawing.Size(49, 20);
-            textEdit3.TabIndex = 5;
+            btnDisconnect.Location = new System.Drawing.Point(456, 46);
+            btnDisconnect.Name = "btnDisconnect";
+            btnDisconnect.Size = new System.Drawing.Size(43, 23);
+            btnDisconnect.TabIndex = 7;
+            btnDisconnect.Text = "해제";
             // 
             // btnConnect
             // 
@@ -117,21 +88,50 @@
             btnConnect.Text = "연결";
             btnConnect.Click += btnConnect_Click;
             // 
-            // btnDisconnect
+            // textEdit3
             // 
-            btnDisconnect.Location = new System.Drawing.Point(456, 46);
-            btnDisconnect.Name = "btnDisconnect";
-            btnDisconnect.Size = new System.Drawing.Size(43, 23);
-            btnDisconnect.TabIndex = 7;
-            btnDisconnect.Text = "해제";
+            textEdit3.Location = new System.Drawing.Point(325, 47);
+            textEdit3.Name = "textEdit3";
+            textEdit3.Size = new System.Drawing.Size(49, 20);
+            textEdit3.TabIndex = 5;
             // 
-            // pictureEdit1
+            // lblUDPPort
             // 
-            pictureEdit1.Location = new System.Drawing.Point(517, 40);
-            pictureEdit1.Name = "pictureEdit1";
-            pictureEdit1.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
-            pictureEdit1.Size = new System.Drawing.Size(43, 29);
-            pictureEdit1.TabIndex = 8;
+            lblUDPPort.Location = new System.Drawing.Point(269, 50);
+            lblUDPPort.Name = "lblUDPPort";
+            lblUDPPort.Size = new System.Drawing.Size(50, 14);
+            lblUDPPort.TabIndex = 4;
+            lblUDPPort.Text = "UDP Port";
+            // 
+            // txtScpiPort
+            // 
+            txtScpiPort.Location = new System.Drawing.Point(219, 47);
+            txtScpiPort.Name = "txtScpiPort";
+            txtScpiPort.Size = new System.Drawing.Size(44, 20);
+            txtScpiPort.TabIndex = 3;
+            // 
+            // lblSCPIPort
+            // 
+            lblSCPIPort.Location = new System.Drawing.Point(161, 50);
+            lblSCPIPort.Name = "lblSCPIPort";
+            lblSCPIPort.Size = new System.Drawing.Size(52, 14);
+            lblSCPIPort.TabIndex = 2;
+            lblSCPIPort.Text = "SCPI Port";
+            // 
+            // txtIP
+            // 
+            txtIP.Location = new System.Drawing.Point(46, 47);
+            txtIP.Name = "txtIP";
+            txtIP.Size = new System.Drawing.Size(100, 20);
+            txtIP.TabIndex = 1;
+            // 
+            // lblIp
+            // 
+            lblIp.Location = new System.Drawing.Point(5, 50);
+            lblIp.Name = "lblIp";
+            lblIp.Size = new System.Drawing.Size(35, 14);
+            lblIp.TabIndex = 0;
+            lblIp.Text = "장비 IP";
             // 
             // Form1
             // 
@@ -145,10 +145,10 @@
             ((System.ComponentModel.ISupportInitialize)grNetwork).EndInit();
             grNetwork.ResumeLayout(false);
             grNetwork.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)textEdit1.Properties).EndInit();
-            ((System.ComponentModel.ISupportInitialize)textEdit2.Properties).EndInit();
-            ((System.ComponentModel.ISupportInitialize)textEdit3.Properties).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureEdit1.Properties).EndInit();
+            ((System.ComponentModel.ISupportInitialize)textEdit3.Properties).EndInit();
+            ((System.ComponentModel.ISupportInitialize)txtScpiPort.Properties).EndInit();
+            ((System.ComponentModel.ISupportInitialize)txtIP.Properties).EndInit();
             ResumeLayout(false);
 
         }
@@ -158,9 +158,9 @@
         private DevExpress.XtraEditors.GroupControl grNetwork;
         private DevExpress.XtraEditors.TextEdit textEdit3;
         private DevExpress.XtraEditors.LabelControl lblUDPPort;
-        private DevExpress.XtraEditors.TextEdit textEdit2;
+        private DevExpress.XtraEditors.TextEdit txtScpiPort;
         private DevExpress.XtraEditors.LabelControl lblSCPIPort;
-        private DevExpress.XtraEditors.TextEdit textEdit1;
+        private DevExpress.XtraEditors.TextEdit txtIP;
         private DevExpress.XtraEditors.LabelControl lblIp;
         private DevExpress.XtraEditors.SimpleButton btnDisconnect;
         private DevExpress.XtraEditors.SimpleButton btnConnect;
