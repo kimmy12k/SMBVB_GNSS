@@ -78,7 +78,7 @@ namespace SMBV100B_GNSS
         public async Task ResetAsync()
         {
             await SendAsync("*RST");
-            await SendAsync("*WAI"); //  장비가 이전  명령 처리 완료될 때까지 다음 명령 안 받겠다는 신호
+            await SendAsync("*WAI"); //  장비가 이전  명령 처리 완료될 때까지 다음 명령 안 받겠다는 신호 //  SMBV100B의 매뉴얼 700page
         }
         //  에러 큐 초기화
         public async Task ClearStatusAsync()
@@ -128,7 +128,6 @@ namespace SMBV100B_GNSS
                 await SendAsync(
                     $":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency {latency:F3}");
             }
-
             // 7. GNSS 시작
             await SendAsync(":SOURce1:BB:GNSS:STATe 1");
 
