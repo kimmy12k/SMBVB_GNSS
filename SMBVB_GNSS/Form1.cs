@@ -40,7 +40,7 @@ namespace SMBVB_GNSS
             try
             {
                 var cfg = IniParser.Load(CFG_PATH);
-                txtIP.EditValue = cfg.Get("Network", "IP", "192.168.1.100");
+                txtIP.EditValue = cfg.Get("Network", "IP", "169.254.2.20");
                 txtScpiPort.EditValue = cfg.Get("Network", "ScpiPort", "5025");
                 textEdit3.EditValue = cfg.Get("Network", "UdpPort", "7755");
             }
@@ -181,13 +181,13 @@ namespace SMBVB_GNSS
         // ════════════════════════════════════════════
         // 폼 종료
         // ════════════════════════════════════════════
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e) // 폼 닫히기 직전에 호출
         {
             _cts?.Cancel();
             _cts = null;
             _tcp?.Disconnect();
             SaveIni();
-            base.OnFormClosing(e);
+            base.OnFormClosing(e);// 부모의 OnFormClosing 실행
         }
     }
 }

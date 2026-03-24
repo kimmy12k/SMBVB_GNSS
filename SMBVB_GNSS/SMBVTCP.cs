@@ -16,17 +16,18 @@ namespace SMBVB_GNSS
 
         private const int COMMAND_DELAY_MS = 50;// AI said -> RST(장비 초기화)후 대기 → 명시 없음 (관례상 500ms)/   
 
-
         public bool IsConnected =>
             _client != null && _client.Connected && _reader != null;
 
-        public async Task ConnectAsync(string ip, int port, int timeoutMs=300)
+        public async Task ConnectAsync(string ip, int port, int timeoutMs = 3000)
         {
             _client = new TcpClient();
             _client.ReceiveTimeout = timeoutMs;
             _client.SendTimeout = timeoutMs;
 
-            _stream = _client.GetStream();
+            await _client.ConnectAsync(ip, port); 
+
+            _stream = _client.GetStream();      
             _reader = new StreamReader(_stream, Encoding.ASCII);
             _writer = new StreamWriter(_stream, Encoding.ASCII)
             {
@@ -65,11 +66,9 @@ namespace SMBVB_GNSS
             string response = await _reader.ReadLineAsync();
             return response?.Trim() ?? string.Empty;
         }
-
         //장비 식별
         public async Task<string> GetIdentityAsync()
             => await QueryAsync("*IDN?");
-
         // 설치 옵션 조회
         public async Task<string> GetOptionsAsync()
             => await QueryAsync("*OPT?");
@@ -99,16 +98,12 @@ namespace SMBVB_GNSS
             // 1. 장비 초기화
             await ResetAsync();       // *RST + 500ms 대기
             await ClearStatusAsync(); // *CLS
-
             // 2. Navigation 모드 설정  주의: 모드 먼저 설정 → 그 다음 위성/위치  (모드 전환 시 위성 파라미터 초기화됨)
             await SendAsync(":SOURce1:BB:GNSS:TMODe NAV");
-
             // 3. GPS 활성화
             await SendAsync(":SOURce1:BB:GNSS:SYSTem:GPS:STATe 1");
-
             // 4. 수신기 위치 타입 설정
             await SendAsync($":SOURce1:BB:GNSS:RECeiver:V1:POSition {mode}");
-
             // 5. 초기 위치 설정
             //    주의: 순서가 경도(Lon) 먼저, 위도(Lat) 나중 (매뉴얼 307p)
             await SendAsync(
