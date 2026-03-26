@@ -16,21 +16,17 @@ namespace SMBVB_GNSS
     /// </summary>
     internal class IniParser
     {
-        // ── 내부 구조: 섹션 → (키 → 값) ─────────────────
         private readonly Dictionary<string, Dictionary<string, string>> _data
             = new(StringComparer.OrdinalIgnoreCase);
 
         private string _filePath = string.Empty;
 
-        // 외부에서 new IniParser() 생성 금지
-        // 반드시 IniParser.Load() 로만 생성
         private IniParser() { }
 
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
         // 로드
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
 
-        /// <summary>INI 파일 로드. 파일 없으면 빈 인스턴스 반환</summary>
         public static IniParser Load(string filePath)
         {
             var parser = new IniParser();
@@ -45,34 +41,29 @@ namespace SMBVB_GNSS
             {
                 string line = rawLine.Trim();
 
-                // 빈 줄 / 주석 건너뜀
                 if (string.IsNullOrEmpty(line) ||
                     line.StartsWith(";") ||
                     line.StartsWith("#"))
                     continue;
 
-                // 섹션
                 if (line.StartsWith("[") && line.Contains("]"))
                 {
                     int end = line.IndexOf("]");
                     currentSection = line.Substring(1, end - 1).Trim();
 
-                    if (!parser._data.ContainsKey(currentSection))// 해당 단어 없을시  새로 등록
+                    if (!parser._data.ContainsKey(currentSection))
                         parser._data[currentSection] =
-                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);// 키 대소문자 구분 없음
-
+                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     continue;
                 }
 
-                // 키=값
                 int eq = line.IndexOf('=');
                 if (eq < 1) continue;
 
                 string key = line.Substring(0, eq).Trim();
                 string val = line.Substring(eq + 1);
 
-                // 인라인 주석 제거 (; 또는 # 이후)
-                int commentIdx = IndexOfInlineComment(val); 
+                int commentIdx = IndexOfInlineComment(val);
                 if (commentIdx >= 0)
                     val = val.Substring(0, commentIdx);
 
@@ -80,7 +71,7 @@ namespace SMBVB_GNSS
 
                 if (string.IsNullOrEmpty(key)) continue;
 
-                if (!parser._data.ContainsKey(currentSection))// 섹션이 없으면 자동 생성
+                if (!parser._data.ContainsKey(currentSection))
                     parser._data[currentSection] =
                         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -90,18 +81,16 @@ namespace SMBVB_GNSS
             return parser;
         }
 
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
         // 저장
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
 
-        /// <summary>현재 경로에 저장</summary>
         public void Save() => Save(_filePath);
 
-        /// <summary>지정 경로에 저장</summary>
         public void Save(string filePath)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("; SMBV100B GNSS Logger 설정 파일");
+            sb.AppendLine("; SMBV100B GNSS Control 설정 파일");
             sb.AppendLine($"; 저장 시각: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine();
 
@@ -113,7 +102,6 @@ namespace SMBVB_GNSS
                 sb.AppendLine();
             }
 
-            // 디렉터리 없으면 생성
             string dir = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
@@ -122,38 +110,33 @@ namespace SMBVB_GNSS
             _filePath = filePath;
         }
 
-        // ════════════════════════════════════════════════
-        // Get — 읽기
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
+        // Get
+        // ════════════════════════════════════════════
 
-        /// <summary>문자열 값 반환. 없으면 defaultValue</summary>
         public string Get(string section, string key, string defaultValue = "")
         {
             if (_data.TryGetValue(section, out var sec) &&
                 sec.TryGetValue(key, out var val))
                 return val;
-
             return defaultValue;
         }
 
-        /// <summary>int 값 반환. 파싱 실패 시 defaultValue</summary>
         public int GetInt(string section, string key, int defaultValue = 0)
         {
             string raw = Get(section, key);
             return int.TryParse(raw, out int result) ? result : defaultValue;
         }
 
-        /// <summary>double 값 반환. 파싱 실패 시 defaultValue</summary>
         public double GetDouble(string section, string key, double defaultValue = 0.0)
         {
             string raw = Get(section, key);
             return double.TryParse(raw,
-                System.Globalization.NumberStyles.Float, // 소수점 있는 숫자 파싱 허용
-                System.Globalization.CultureInfo.InvariantCulture, // 소수점 구분자를 . 으로 허용
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
                 out double result) ? result : defaultValue;
         }
 
-        /// <summary>bool 값 반환. true/1/yes → true, 나머지 → false</summary>
         public bool GetBool(string section, string key, bool defaultValue = false)
         {
             string raw = Get(section, key).ToLower();
@@ -161,43 +144,37 @@ namespace SMBVB_GNSS
             return raw == "true" || raw == "1" || raw == "yes";
         }
 
-        // ════════════════════════════════════════════════
-        // Set — 쓰기
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
+        // Set
+        // ════════════════════════════════════════════
 
-        /// <summary>값 설정. 섹션/키 없으면 자동 생성</summary>
         public void Set(string section, string key, string value)
         {
             if (!_data.ContainsKey(section))
                 _data[section] =
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
             _data[section][key] = value ?? string.Empty;
         }
 
-        public void Set(string section, string key, int value) // int를 string으로
+        public void Set(string section, string key, int value)
             => Set(section, key, value.ToString());
 
-        public void Set(string section, string key, double value) // double을 string으로
+        public void Set(string section, string key, double value)
             => Set(section, key,
-                value.ToString("G", System.Globalization.CultureInfo.InvariantCulture)); //"G"는 일반숫자 형식 / invariantCulture은 소수점 항상 . 으로 저장 
+                value.ToString("G", System.Globalization.CultureInfo.InvariantCulture));
 
         public void Set(string section, string key, bool value)
             => Set(section, key, value ? "true" : "false");
 
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
         // 기타
-        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════
 
-        /// <summary>섹션 존재 여부</summary>
-        public bool HasSection(string section)
-            => _data.ContainsKey(section);
+        public bool HasSection(string section) => _data.ContainsKey(section);
 
-        /// <summary>키 존재 여부</summary>
         public bool HasKey(string section, string key)
             => _data.TryGetValue(section, out var sec) && sec.ContainsKey(key);
 
-        /// <summary>섹션의 모든 키 목록</summary>
         public IEnumerable<string> GetKeys(string section)
         {
             if (_data.TryGetValue(section, out var sec))
@@ -205,7 +182,6 @@ namespace SMBVB_GNSS
             return Array.Empty<string>();
         }
 
-        // ── 인라인 주석 위치 찾기 (따옴표 밖의 ; 또는 #) ─
         private static int IndexOfInlineComment(string s)
         {
             bool inQuote = false;
