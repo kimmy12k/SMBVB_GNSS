@@ -90,7 +90,7 @@ namespace SMBVB_GNSS
             _udp = new UdpClient();
             _packetCount = 0;
             _totalStopwatch.Restart();
-            route.Reset();  // 처음부터 시작
+            route.ResetIndex();  // 처음부터 시작
 
             var loopWatch = new Stopwatch();
 

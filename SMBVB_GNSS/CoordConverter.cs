@@ -14,10 +14,10 @@ namespace SMBVB_GNSS
     /// </summary>
     internal static class CoordConverter
     {
-        private const double A = 6378137.0;
-        private const double F = 1.0 / 298.257223563;
-        private const double B = A * (1.0 - F);
-        private const double E2 = 2.0 * F - F * F;
+        private const double A = 6378137.0; //장반경 (지구 적도 반지름) 
+        private const double F = 1.0 / 298.257223563;//편평률 (지구가 살짝 납작한 정도)  tilted
+        private const double B = A * (1.0 - F);// 단반경(지구 극 반지름)
+        private const double E2 = 2.0 * F - F * F;// 이심률의 제곱
         private const double EP2 = (A * A - B * B) / (B * B);
 
         private const double DEG2RAD = Math.PI / 180.0;

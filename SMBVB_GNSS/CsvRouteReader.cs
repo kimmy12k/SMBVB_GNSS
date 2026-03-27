@@ -135,7 +135,7 @@ namespace SMBVB_GNSS
         }
 
         /// <summary>처음으로 되돌리기</summary>
-        public void Reset()
+        public void ResetIndex()
         {
             _currentIndex = 0;
         }

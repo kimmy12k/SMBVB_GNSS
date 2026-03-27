@@ -33,6 +33,7 @@ namespace SMBVB_GNSS
             LoadIni();
             InitCombos();
             SetControlState(false);
+            ClearStatus();
         }
 
         // ════════════════════════════════════════════
@@ -170,7 +171,6 @@ namespace SMBVB_GNSS
             _cts?.Cancel();
             _cts = null;
             _tcp.Disconnect();
-
             DrawStatusDot(Color.FromArgb(198, 40, 40));
             SetControlState(false);
             btnConnect.Text = "연결";
@@ -312,7 +312,7 @@ namespace SMBVB_GNSS
                 txtLat.Text = first.Latitude.ToString("F6", CultureInfo.InvariantCulture);
                 txtLon.Text = first.Longitude.ToString("F6", CultureInfo.InvariantCulture);
                 txtAlt.Text = first.Altitude.ToString("F0", CultureInfo.InvariantCulture);
-                _route.Reset();
+                _route.ResetIndex();
 
                 btnHilStart.Enabled = true;
                 Log($"CSV 로드: {System.IO.Path.GetFileName(dlg.FileName)}" +
@@ -325,7 +325,6 @@ namespace SMBVB_GNSS
                     "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         // ════════════════════════════════════════════
         // HIL Start
         // ════════════════════════════════════════════
@@ -405,7 +404,7 @@ namespace SMBVB_GNSS
             lblUdpPort.Text = udpPort.ToString();
 
             // CSV 경로 처음부터
-            _route.Reset();
+            _route.ResetIndex();
 
             try
             {
@@ -420,12 +419,10 @@ namespace SMBVB_GNSS
                     lblHilStatus.ForeColor = Color.FromArgb(198, 40, 40);
                 }
                 Log($"HIL 종료: {_hil.PacketCount:N0} 패킷 전송");
-
                 btnHilStart.Enabled = true;
                 btnHilStop.Enabled = false;
                 btnInitialize.Enabled = true;
                 btnLoadCsv.Enabled = true;
-
                 _hil?.Dispose();
                 _hil = null;
             }
@@ -511,18 +508,15 @@ namespace SMBVB_GNSS
         {
             // 이전 이미지 메모리 해제
             var old = picStatus.Image;
-
             var bmp = new Bitmap(16, 16);
             using var g = Graphics.FromImage(bmp);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(Color.Transparent);
             using var brush = new SolidBrush(color);
             g.FillEllipse(brush, 2, 2, 12, 12);
-
             picStatus.Image = bmp;
             old?.Dispose();  // 이전 이미지 해제
         }
-
         // ════════════════════════════════════════════
         // 폼 종료
         // ════════════════════════════════════════════
@@ -535,7 +529,5 @@ namespace SMBVB_GNSS
             SaveIni();
             base.OnFormClosing(e);
         }
-
-
     }
 }
