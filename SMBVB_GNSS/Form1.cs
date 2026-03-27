@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using DevExpress.DirectX.Common.Direct2D;
 using DevExpress.XtraEditors;
 
 namespace SMBVB_GNSS
@@ -15,7 +16,8 @@ namespace SMBVB_GNSS
         private CancellationTokenSource _hilCts = null;
         private SMBVTCP _tcp;
         private UdpHilClient _hil;
-        private CsvRouteReader _route;     // CSV 경로 데이터
+        private CsvRouteReader _route;  // CSV 경로 데이터
+
 
         private bool IsConnected => _tcp != null && _tcp.IsConnected;
 
@@ -177,7 +179,10 @@ namespace SMBVB_GNSS
             ClearStatus();
             Log("Disconnected");
         }
+        private void Form1_Load(object sender, EventArgs e)
+        {
 
+        }
         // ════════════════════════════════════════════
         // Position 드롭다운
         // ════════════════════════════════════════════
@@ -209,7 +214,8 @@ namespace SMBVB_GNSS
                 int udpPort = int.Parse(txtUdpPort.Text.Trim());
 
                 Log("Initialize 시작...");
-                await _tcp.InitGnssAsync(mode, lat, lon, alt, udpPort);
+
+                await _tcp.InitGnssAsync(mode, lat, lon, alt,udpPort);
 
                 string info = await _tcp.GetSimInfoAsync();
                 Log($"Initialize 완료: {info}");
@@ -402,10 +408,8 @@ namespace SMBVB_GNSS
             lblHilStatus.ForeColor = Color.FromArgb(46, 125, 50);
             lblUpdateRate.Text = $"{1000 / intervalMs} Hz";
             lblUdpPort.Text = udpPort.ToString();
-
             // CSV 경로 처음부터
             _route.ResetIndex();
-
             try
             {
                 await _hil.StartAsync(_route, intervalMs, _hilCts.Token);
@@ -427,7 +431,6 @@ namespace SMBVB_GNSS
                 _hil = null;
             }
         }
-
         // ════════════════════════════════════════════
         // HIL Stop
         // ════════════════════════════════════════════
@@ -449,7 +452,6 @@ namespace SMBVB_GNSS
         {
             memoLog.Text = string.Empty;
         }
-
         // ════════════════════════════════════════════
         // Status
         // ════════════════════════════════════════════
@@ -469,7 +471,6 @@ namespace SMBVB_GNSS
             lblTestMode.Text = mode;
             lblSimInfo.Text = info;
         }
-
         private void ClearStatus()
         {
             lblGnssState.Text = "-"; lblGnssState.ForeColor = Color.Gray;
@@ -478,7 +479,6 @@ namespace SMBVB_GNSS
             lblPacketCount.Text = "0"; lblUpdateRate.Text = "-";
             lblLatency.Text = "-"; lblHilStatus.Text = "-"; lblUdpPort.Text = "-";
         }
-
         // ════════════════════════════════════════════
         // 검증
         // ════════════════════════════════════════════
@@ -528,6 +528,23 @@ namespace SMBVB_GNSS
             _tcp?.Disconnect();
             SaveIni();
             base.OnFormClosing(e);
+        }
+
+        private async void btnConfig_Click(object sender, EventArgs e)
+        {
+
+            double lat = double.Parse(txtLat.Text, CultureInfo.InvariantCulture);
+            double lon = double.Parse(txtLon.Text, CultureInfo.InvariantCulture);
+            double alt = double.Parse(txtAlt.Text, CultureInfo.InvariantCulture);
+
+
+            Log("Initialize 시작...");
+
+            await _tcp.Config( lat, lon, alt);
+
+            string info = await _tcp.GetSimInfoAsync();
+            Log($"Initialize 완료: {info}");
+            UpdateStatus("ON", "ON", comboTestMode.Text, info);
         }
     }
 }

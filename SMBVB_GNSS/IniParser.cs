@@ -17,7 +17,7 @@ namespace SMBVB_GNSS
     internal class IniParser
     {
         private readonly Dictionary<string, Dictionary<string, string>> _data
-            = new(StringComparer.OrdinalIgnoreCase);
+            = new(StringComparer.OrdinalIgnoreCase);// 대소문자 무시
 
         private string _filePath = string.Empty;
 

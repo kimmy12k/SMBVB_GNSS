@@ -157,7 +157,7 @@ namespace SMBVB_GNSS
             await Task.Delay(1000);
 
             // 3. 테스트 모드 설정 (p.283)
-            //    ⚠ 반드시 위치 설정 전에! (p.32)
+            //   반드시 위치 설정 전에! (p.32)
             await SendAsync(":SOURce1:BB:GNSS:TMODe NAV");
 
             // 4. 수신기 타입 설정 (p.305)
@@ -182,6 +182,9 @@ namespace SMBVB_GNSS
                     $":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency {latency:F3}");
             }
 
+            // 추가
+            //await SendAsync($":SOURce1:POWer:LEVel:IMMediate:AMPLitude {level}");
+
             // 7. GNSS 시뮬레이션 시작 (p.282)
             await SendAsync(":SOURce1:BB:GNSS:STATe 1");
             await Task.Delay(2000);
@@ -195,6 +198,20 @@ namespace SMBVB_GNSS
                 await GoToLocalAsync();
             }
         }
+
+
+        public async Task Config(double lat,double lon,double alt)
+        {
+            // 1. 장비 초기화
+            // 5. 좌표 설정 (p.303 예제, p.306-307)
+            //    LOCation:SELect → RFRame → FORMat → 좌표 순서
+            await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:SELect \"User Defined\"");
+            await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:RFRame WGS84");
+            await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:FORMat DEC");
+            //    주의: 순서가 경도(Lon), 위도(Lat), 고도(Alt) (매뉴얼 p.307)
+            await SendAsync( $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS" + $" {lon},{lat},{alt}");
+        }
+
 
         // ════════════════════════════════════════════
         // GNSS 중지

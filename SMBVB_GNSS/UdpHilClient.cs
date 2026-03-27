@@ -100,19 +100,15 @@ namespace SMBVB_GNSS
                 while (!route.IsFinished && !cancelToken.IsCancellationRequested)
                 {
                     loopWatch.Restart();
-
                     // ① CSV에서 다음 포인트 읽기
                     var pt = route.GetNext();
-
                     // ② WGS84 → ECEF 변환
                     //    SMBV100B HIL UDP는 ECEF만 받음 (매뉴얼 p.247: Mode A)
                     CoordConverter.ToECEF(
                         pt.Latitude, pt.Longitude, pt.Altitude,
                         out double x, out double y, out double z);
-
                     // ③ 경과 시간 (CSV의 Time 컬럼 사용)
                     double elapsedSec = pt.Time;
-
                     // ④ 216바이트 패킷 생성
                     //    Big Endian IEEE754 (매뉴얼 p.247)
                     byte[] packet = HilPacket.Build(

@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36811.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SMBVB_GNSS", "SMBVB_GNSS\SMBVB_GNSS.csproj", "{B7A2A7F2-F1B8-4AD4-A02F-6DA905C027AC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "server", "server\server.csproj", "{A3F81310-C007-4387-A866-54D265A2283F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,8 +17,15 @@ Global
 		{B7A2A7F2-F1B8-4AD4-A02F-6DA905C027AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7A2A7F2-F1B8-4AD4-A02F-6DA905C027AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B7A2A7F2-F1B8-4AD4-A02F-6DA905C027AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3F81310-C007-4387-A866-54D265A2283F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3F81310-C007-4387-A866-54D265A2283F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3F81310-C007-4387-A866-54D265A2283F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3F81310-C007-4387-A866-54D265A2283F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9AD9AB22-8EDB-4263-BABE-47516A82A9C8}
 	EndGlobalSection
 EndGlobal

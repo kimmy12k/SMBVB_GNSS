@@ -83,6 +83,7 @@
             grLog = new DevExpress.XtraEditors.GroupControl();
             btnLogClear = new DevExpress.XtraEditors.SimpleButton();
             memoLog = new DevExpress.XtraEditors.MemoEdit();
+            btnConfig = new DevExpress.XtraEditors.SimpleButton();
             ((System.ComponentModel.ISupportInitialize)grNetwork).BeginInit();
             grNetwork.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picStatus.Properties).BeginInit();
@@ -127,7 +128,7 @@
             // 
             // picStatus
             // 
-            picStatus.Location = new System.Drawing.Point(565, 31);
+            picStatus.Location = new System.Drawing.Point(563, 35);
             picStatus.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             picStatus.Name = "picStatus";
             picStatus.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
@@ -206,7 +207,7 @@
             // 
             // btnGnssOn
             // 
-            btnGnssOn.Location = new System.Drawing.Point(353, 40);
+            btnGnssOn.Location = new System.Drawing.Point(375, 26);
             btnGnssOn.Name = "btnGnssOn";
             btnGnssOn.Size = new System.Drawing.Size(116, 40);
             btnGnssOn.TabIndex = 25;
@@ -219,7 +220,7 @@
             btnInitialize.Appearance.Options.UseBackColor = true;
             btnInitialize.AppearanceDisabled.Font = new System.Drawing.Font("Candara", 9F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, 0);
             btnInitialize.AppearanceDisabled.Options.UseFont = true;
-            btnInitialize.Location = new System.Drawing.Point(5, 40);
+            btnInitialize.Location = new System.Drawing.Point(10, 27);
             btnInitialize.Name = "btnInitialize";
             btnInitialize.Size = new System.Drawing.Size(106, 40);
             btnInitialize.TabIndex = 24;
@@ -228,6 +229,7 @@
             // 
             // grControl
             // 
+            grControl.Controls.Add(btnConfig);
             grControl.Controls.Add(btnRfOff);
             grControl.Controls.Add(btnLoadCsv);
             grControl.Controls.Add(btnHilStop);
@@ -236,15 +238,15 @@
             grControl.Controls.Add(btnGnssOff);
             grControl.Controls.Add(btnInitialize);
             grControl.Controls.Add(btnGnssOn);
-            grControl.Location = new System.Drawing.Point(14, 224);
+            grControl.Location = new System.Drawing.Point(12, 238);
             grControl.Name = "grControl";
-            grControl.Size = new System.Drawing.Size(628, 136);
+            grControl.Size = new System.Drawing.Size(628, 120);
             grControl.TabIndex = 24;
             grControl.Text = "Control";
             // 
             // btnRfOff
             // 
-            btnRfOff.Location = new System.Drawing.Point(498, 86);
+            btnRfOff.Location = new System.Drawing.Point(507, 71);
             btnRfOff.Name = "btnRfOff";
             btnRfOff.Size = new System.Drawing.Size(116, 40);
             btnRfOff.TabIndex = 33;
@@ -257,16 +259,16 @@
             btnLoadCsv.Appearance.Font = new System.Drawing.Font("Candara", 9F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, 0);
             btnLoadCsv.Appearance.Options.UseBackColor = true;
             btnLoadCsv.Appearance.Options.UseFont = true;
-            btnLoadCsv.Location = new System.Drawing.Point(5, 86);
+            btnLoadCsv.Location = new System.Drawing.Point(283, 31);
             btnLoadCsv.Name = "btnLoadCsv";
-            btnLoadCsv.Size = new System.Drawing.Size(106, 40);
+            btnLoadCsv.Size = new System.Drawing.Size(74, 80);
             btnLoadCsv.TabIndex = 32;
             btnLoadCsv.Text = "CSV Load";
             btnLoadCsv.Click += btnLoadCsv_Click;
             // 
             // btnHilStop
             // 
-            btnHilStop.Location = new System.Drawing.Point(142, 86);
+            btnHilStop.Location = new System.Drawing.Point(153, 70);
             btnHilStop.Name = "btnHilStop";
             btnHilStop.Size = new System.Drawing.Size(116, 40);
             btnHilStop.TabIndex = 31;
@@ -281,7 +283,7 @@
             btnHilStart.Appearance.Options.UseBackColor = true;
             btnHilStart.Appearance.Options.UseBorderColor = true;
             btnHilStart.Appearance.Options.UseFont = true;
-            btnHilStart.Location = new System.Drawing.Point(142, 40);
+            btnHilStart.Location = new System.Drawing.Point(153, 27);
             btnHilStart.Name = "btnHilStart";
             btnHilStart.Size = new System.Drawing.Size(116, 40);
             btnHilStart.TabIndex = 30;
@@ -290,7 +292,7 @@
             // 
             // btnRfOn
             // 
-            btnRfOn.Location = new System.Drawing.Point(498, 40);
+            btnRfOn.Location = new System.Drawing.Point(507, 26);
             btnRfOn.Name = "btnRfOn";
             btnRfOn.Size = new System.Drawing.Size(116, 40);
             btnRfOn.TabIndex = 29;
@@ -299,7 +301,7 @@
             // 
             // btnGnssOff
             // 
-            btnGnssOff.Location = new System.Drawing.Point(353, 86);
+            btnGnssOff.Location = new System.Drawing.Point(375, 71);
             btnGnssOff.Name = "btnGnssOff";
             btnGnssOff.Size = new System.Drawing.Size(116, 40);
             btnGnssOff.TabIndex = 26;
@@ -517,7 +519,7 @@
             grGnssConfig.Controls.Add(kim);
             grGnssConfig.Location = new System.Drawing.Point(12, 118);
             grGnssConfig.Name = "grGnssConfig";
-            grGnssConfig.Size = new System.Drawing.Size(630, 100);
+            grGnssConfig.Size = new System.Drawing.Size(630, 114);
             grGnssConfig.TabIndex = 9;
             grGnssConfig.Text = "Gnss Configuration";
             // 
@@ -545,7 +547,7 @@
             // comboPosition
             // 
             comboPosition.EditValue = "";
-            comboPosition.Location = new System.Drawing.Point(104, 63);
+            comboPosition.Location = new System.Drawing.Point(104, 52);
             comboPosition.Name = "comboPosition";
             comboPosition.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] { new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo) });
             comboPosition.Properties.Items.AddRange(new object[] { "STAT", "MOV", "HIL" });
@@ -555,7 +557,7 @@
             // 
             // comboTestMode
             // 
-            comboTestMode.Location = new System.Drawing.Point(104, 34);
+            comboTestMode.Location = new System.Drawing.Point(104, 26);
             comboTestMode.Name = "comboTestMode";
             comboTestMode.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] { new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo) });
             comboTestMode.Properties.Items.AddRange(new object[] { "NAV", "TRAC", "SING" });
@@ -588,7 +590,7 @@
             // 
             // lblPosition
             // 
-            lblPosition.Location = new System.Drawing.Point(27, 66);
+            lblPosition.Location = new System.Drawing.Point(27, 58);
             lblPosition.Name = "lblPosition";
             lblPosition.Size = new System.Drawing.Size(42, 14);
             lblPosition.TabIndex = 1;
@@ -596,7 +598,7 @@
             // 
             // kim
             // 
-            kim.Location = new System.Drawing.Point(27, 37);
+            kim.Location = new System.Drawing.Point(27, 29);
             kim.Name = "kim";
             kim.Size = new System.Drawing.Size(59, 14);
             kim.TabIndex = 0;
@@ -608,7 +610,7 @@
             grLog.Controls.Add(memoLog);
             grLog.Location = new System.Drawing.Point(648, 13);
             grLog.Name = "grLog";
-            grLog.Size = new System.Drawing.Size(326, 347);
+            grLog.Size = new System.Drawing.Size(296, 532);
             grLog.TabIndex = 36;
             grLog.Text = "LOG";
             // 
@@ -633,15 +635,30 @@
             memoLog.Properties.Appearance.Options.UseFont = true;
             memoLog.Properties.Appearance.Options.UseForeColor = true;
             memoLog.Properties.ReadOnly = true;
-            memoLog.Size = new System.Drawing.Size(322, 322);
+            memoLog.Size = new System.Drawing.Size(292, 507);
             memoLog.TabIndex = 0;
+            // 
+            // btnConfig
+            // 
+            btnConfig.Appearance.BackColor = System.Drawing.Color.Aqua;
+            btnConfig.Appearance.BorderColor = System.Drawing.Color.FromArgb(128, 255, 255);
+            btnConfig.Appearance.Font = new System.Drawing.Font("Candara", 9F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, 0);
+            btnConfig.Appearance.Options.UseBackColor = true;
+            btnConfig.Appearance.Options.UseBorderColor = true;
+            btnConfig.Appearance.Options.UseFont = true;
+            btnConfig.Location = new System.Drawing.Point(8, 71);
+            btnConfig.Name = "btnConfig";
+            btnConfig.Size = new System.Drawing.Size(108, 40);
+            btnConfig.TabIndex = 34;
+            btnConfig.Text = "Config";
+            btnConfig.Click += btnConfig_Click;
             // 
             // Form1
             // 
             Appearance.BackColor = System.Drawing.Color.Linen;
             Appearance.Options.UseBackColor = true;
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
-            ClientSize = new System.Drawing.Size(979, 557);
+            ClientSize = new System.Drawing.Size(945, 557);
             Controls.Add(grLog);
             Controls.Add(grGnssConfig);
             Controls.Add(grHilMonitor);
@@ -652,6 +669,7 @@
             Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
             Name = "Form1";
             Text = "Gnss Remote Controller";
+            Load += Form1_Load;
             ((System.ComponentModel.ISupportInitialize)grNetwork).EndInit();
             grNetwork.ResumeLayout(false);
             grNetwork.PerformLayout();
@@ -739,6 +757,7 @@
         private DevExpress.XtraEditors.GroupControl grLog;
         private DevExpress.XtraEditors.MemoEdit memoLog;
         private DevExpress.XtraEditors.SimpleButton btnLogClear;
+        private DevExpress.XtraEditors.SimpleButton btnConfig;
     }
 }
 
