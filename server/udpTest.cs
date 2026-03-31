@@ -1,176 +1,127 @@
 ﻿using System;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading.Tasks;
 
 namespace server
 {
-    internal class udpTest
+    class Program
     {
-        private static UdpClient _udpServer;
-        private static CancellationTokenSource _udpCts;
-        private static bool _udpRunning = false;
-
         static async Task Main(string[] args)
         {
-            int tcpPort = 9000;
+            string ip = "169.254.2.20";
 
-            TcpListener tcpListener = new TcpListener(IPAddress.Any, tcpPort);
-            tcpListener.Start();
+            Console.WriteLine("=== HIL UDP 통합 테스트 ===");
+            Console.WriteLine("1단계: TCP로 SCPI 설정 + HWTime 읽기");
+            Console.WriteLine("2단계: &GTL + TCP 닫기");
+            Console.WriteLine("3단계: 즉시 UDP 전송 시작");
+            Console.WriteLine("\nEnter 누르면 시작");
+            Console.ReadLine();
 
-            Console.WriteLine($"TCP 서버 시작 - 포트: {tcpPort}");
-            Console.WriteLine("TCP 명령 예시: START_UDP:5000");
-            Console.WriteLine("TCP 명령 예시: STOP_UDP");
+            // ── 1단계: TCP SCPI 설정 ──
+            var tcp = new TcpClient();
+            await tcp.ConnectAsync(ip, 5025);
+            var stream = tcp.GetStream();
+            var reader = new StreamReader(stream, Encoding.ASCII);
+            var writer = new StreamWriter(stream, Encoding.ASCII)
+            { AutoFlush = true };
 
-            while (true)
+            Console.WriteLine("[TCP] 연결됨");
+
+            await Send(writer, "*RST");
+            await Task.Delay(3000);
+            await Send(writer, "*CLS");
+            await Send(writer, ":SOURce1:BB:GNSS:PRESet");
+            await Task.Delay(1000);
+            await Send(writer, ":SOURce1:BB:GNSS:TMODe NAV");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:POSition HIL");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:LOCation:SELect \"User Defined\"");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:RFRame WGS84");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:FORMat DEC");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS 126.8320,37.6584,28");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:HIL:ITYPe UDP");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:HIL:PORT 7755");
+            await Send(writer, ":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency 0.020");
+            await Send(writer, ":SOURce1:BB:GNSS:STATe 1");
+            await Task.Delay(2000);
+            await Send(writer, ":OUTPut1:STATe 1");
+
+            // HWTime 읽기
+            await writer.WriteLineAsync(":SOURce1:BB:GNSS:RT:HWTime?");
+            await Task.Delay(50);
+            string hwTimeStr = await reader.ReadLineAsync();
+            double hwTime = double.Parse(hwTimeStr.Trim(),
+                System.Globalization.CultureInfo.InvariantCulture);
+            Console.WriteLine($"[TCP] HWTime = {hwTime:F2}초");
+
+            // &GTL 보내고 TCP 닫기
+            await Send(writer, "&GTL");
+            Console.WriteLine("[TCP] &GTL 전송");
+            await Task.Delay(200);
+
+            reader.Close();
+            writer.Close();
+            tcp.Close();
+            Console.WriteLine("[TCP] 연결 종료 → Local 모드");
+
+            // ── 2단계: 즉시 UDP 전송 ──
+            double lat = 37.6584, lon = 126.8320, alt = 28;
+
+            double latRad = lat * Math.PI / 180.0;
+            double lonRad = lon * Math.PI / 180.0;
+            double a = 6378137.0;
+            double e2 = 0.00669437999014;
+            double N = a / Math.Sqrt(1 - e2 * Math.Sin(latRad) * Math.Sin(latRad));
+            double x = (N + alt) * Math.Cos(latRad) * Math.Cos(lonRad);
+            double y = (N + alt) * Math.Cos(latRad) * Math.Sin(lonRad);
+            double z = (N * (1 - e2) + alt) * Math.Sin(latRad);
+
+            Console.WriteLine($"[UDP] ECEF: X={x:F0}, Y={y:F0}, Z={z:F0}");
+
+            var udp = new UdpClient(
+                new IPEndPoint(IPAddress.Parse("169.254.2.21"), 0));
+            var endpoint = new IPEndPoint(IPAddress.Parse(ip), 7755);
+
+            double baseTime = hwTime + 1.0;  // HWTime + 1초부터 시작
+            Console.WriteLine($"[UDP] 전송 시작 (baseTime={baseTime:F2})");
+
+            for (int i = 0; i < 30; i++)
             {
-                TcpClient client = await tcpListener.AcceptTcpClientAsync();
-                _ = HandleTcpClientAsync(client);
+                double time = baseTime + i * 1.0;
+
+                var buf = new byte[216];
+                int offset = 16;
+
+                WriteBE(buf, offset, time); offset += 8;
+                WriteBE(buf, offset, x); offset += 8;
+                WriteBE(buf, offset, y); offset += 8;
+                WriteBE(buf, offset, z); offset += 8;
+
+                await udp.SendAsync(buf, buf.Length, endpoint);
+                Console.WriteLine($"[UDP] #{i + 1} | Time={time:F1}s | 전송");
+
+                await Task.Delay(1000);
             }
+
+            udp.Close();
+            Console.WriteLine("\n전송 완료! PuTTY로 통계 확인하세요.");
+            Console.ReadLine();
         }
 
-        private static async Task HandleTcpClientAsync(TcpClient client)
+        static async Task Send(StreamWriter w, string cmd)
         {
-            Console.WriteLine("TCP 클라이언트 접속");
-
-            try
-            {
-                using (client)
-                using (NetworkStream stream = client.GetStream())
-                {
-                    byte[] buffer = new byte[1024];
-                    int read = await stream.ReadAsync(buffer, 0, buffer.Length);
-
-                    if (read <= 0)
-                        return;
-
-                    string command = Encoding.UTF8.GetString(buffer, 0, read).Trim();
-                    Console.WriteLine($"TCP 수신: {command}");
-
-                    string response;
-
-                    if (command.StartsWith("START_UDP:", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string portText = command.Substring("START_UDP:".Length);
-
-                        if (int.TryParse(portText, out int udpPort))
-                        {
-                            response = StartUdpServer(udpPort);
-                        }
-                        else
-                        {
-                            response = "ERROR: 잘못된 UDP 포트";
-                        }
-                    }
-                    else if (command.Equals("STOP_UDP", StringComparison.OrdinalIgnoreCase))
-                    {
-                        response = StopUdpServer();
-                    }
-                    else
-                    {
-                        response = "ERROR: 알 수 없는 명령";
-                    }
-
-                    byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-                    await stream.WriteAsync(responseBytes, 0, responseBytes.Length);
-
-                    Console.WriteLine($"TCP 응답: {response}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"TCP 처리 에러: {ex.Message}");
-            }
+            await w.WriteLineAsync(cmd);
+            await Task.Delay(50);
+            Console.WriteLine($"[TCP] → {cmd}");
         }
 
-        private static string StartUdpServer(int port)
+        static void WriteBE(byte[] buf, int offset, double value)
         {
-            try
-            {
-                if (_udpRunning)
-                {
-                    return "ERROR: UDP 서버가 이미 실행 중입니다.";
-                }
-
-                _udpCts = new CancellationTokenSource();
-                _udpServer = new UdpClient(port);
-                _udpRunning = true;
-
-                _ = Task.Run(() => ReceiveUdpLoopAsync(_udpCts.Token));
-
-                Console.WriteLine($"UDP 수신 시작 - 포트: {port}");
-                return $"OK: UDP STARTED {port}";
-            }
-            catch (Exception ex)
-            {
-                _udpRunning = false;
-                return $"ERROR: UDP 시작 실패 - {ex.Message}";
-            }
-        }
-
-        private static string StopUdpServer()
-        {
-            try
-            {
-                if (!_udpRunning)
-                {
-                    return "ERROR: UDP 서버가 실행 중이 아닙니다.";
-                }
-
-                _udpRunning = false;
-                _udpCts?.Cancel();
-                _udpServer?.Close();
-                _udpServer = null;
-
-                Console.WriteLine("UDP 수신 중지");
-                return "OK: UDP STOPPED";
-            }
-            catch (Exception ex)
-            {
-                return $"ERROR: UDP 중지 실패 - {ex.Message}";
-            }
-        }
-
-        private static async Task ReceiveUdpLoopAsync(CancellationToken token)
-        {
-            try
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    UdpReceiveResult result = await _udpServer.ReceiveAsync();
-                    string text = Encoding.UTF8.GetString(result.Buffer);
-
-                    Console.WriteLine("--------------------------------------------------");
-                    Console.WriteLine($"UDP 수신 시간 : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    Console.WriteLine($"보낸 곳       : {result.RemoteEndPoint.Address}:{result.RemoteEndPoint.Port}");
-                    Console.WriteLine($"수신 길이     : {result.Buffer.Length} byte");
-                    Console.WriteLine($"수신 데이터   : {text}");
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                Console.WriteLine("UDP 소켓 종료됨");
-            }
-            catch (SocketException ex)
-            {
-                if (_udpRunning)
-                {
-                    Console.WriteLine($"UDP 소켓 에러: {ex.Message}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"UDP 수신 에러: {ex.Message}");
-            }
-            finally
-            {
-                _udpRunning = false;
-            }
+            byte[] bytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian) Array.Reverse(bytes);
+            Buffer.BlockCopy(bytes, 0, buf, offset, 8);
         }
     }
 }

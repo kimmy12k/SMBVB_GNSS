@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -9,15 +10,14 @@ namespace SMBVB_GNSS
     /// <summary>
     /// SMBV100B TCP/SCPI 통신 클래스
     /// 
-    /// 역할:
-    ///   - TCP 연결/해제 (port 5025)
-    ///   - SCPI 명령 송신 (SendAsync)
-    ///   - SCPI 쿼리 송수신 (QueryAsync)
-    ///   - GNSS 초기화 시퀀스 (InitGnssAsync)
-    /// 
-    /// 참고 매뉴얼:
-    ///   - GNSS User Manual 1178.9403.02-05
-    ///   - SMBV100B User Manual 1178.4460.02-15
+    /// 변경 이력:
+    ///   - COMMAND_DELAY: 50→100ms (장비 처리 여유)
+    ///   - *RST 대기: 3→5초 (DSP 초기화 충분 대기)
+    ///   - PRESet 제거 (*RST와 중복, DSP 이중 부하)
+    ///   - STATe 1 대기: 2→5초 (HIL 초기화 충분 대기)
+    ///   - CheckErrorAsync 추가 (에러 상태에서 명령 누적 방지)
+    ///   - SendHilPositionAsync 추가 (SCPI HIL 위치 전송)
+    ///   - &GTL 제거 (SCPI HIL은 TCP 유지 → 불필요)
     /// </summary>
     internal class SMBVTCP
     {
@@ -26,8 +26,9 @@ namespace SMBVB_GNSS
         private StreamReader _reader;
         private StreamWriter _writer;
 
-        // 일반 명령 간 최소 대기 시간
-        private const int COMMAND_DELAY_MS = 50;
+        // 50→100ms: 장비가 이전 명령을 처리할 시간 확보
+        // 50ms에서는 명령이 겹쳐서 무시될 수 있음
+        private const int COMMAND_DELAY_MS = 100;
 
         public bool IsConnected =>
             _client != null && _client.Connected && _reader != null;
@@ -75,7 +76,6 @@ namespace SMBVB_GNSS
         // 송신 / 쿼리
         // ════════════════════════════════════════════
 
-        /// <summary>SCPI 명령 전송 (응답 없음)</summary>
         public async Task SendAsync(string command)
         {
             if (!IsConnected)
@@ -85,7 +85,6 @@ namespace SMBVB_GNSS
             await Task.Delay(COMMAND_DELAY_MS);
         }
 
-        /// <summary>SCPI 쿼리 전송 + 응답 수신 (?로 끝나는 명령)</summary>
         public async Task<string> QueryAsync(string command)
         {
             await SendAsync(command);
@@ -94,86 +93,104 @@ namespace SMBVB_GNSS
         }
 
         // ════════════════════════════════════════════
+        // 에러 체크 (신규)
+        // ════════════════════════════════════════════
+        //
+        // DSP가 에러 상태인데 명령을 계속 보내면 FIFO가 넘침
+        // → "FIFO is not empty" → 장비 재부팅 필요
+        // 주요 명령 후 에러를 확인하고, 에러가 있으면 즉시 중단
+
+        /// <summary>
+        /// 에러 큐 확인. 에러가 있으면 예외를 던짐.
+        /// </summary>
+        public async Task CheckErrorAsync()
+        {
+            string err = await QueryAsync(":SYSTem:ERRor?");
+            if (!err.StartsWith("0"))
+                throw new Exception($"장비 에러: {err}");
+        }
+
+        /// <summary>
+        /// 에러 큐 확인 (예외 없이 문자열 반환).
+        /// 로그용.
+        /// </summary>
+        public async Task<string> GetErrorAsync()
+        {
+            return await QueryAsync(":SYSTem:ERRor?");
+        }
+
+        // ════════════════════════════════════════════
         // 공통 명령
         // ════════════════════════════════════════════
 
-        /// <summary>장비 식별 정보 조회</summary>
         public async Task<string> GetIdentityAsync()
             => await QueryAsync("*IDN?");
 
-        /// <summary>설치된 옵션 조회</summary>
         public async Task<string> GetOptionsAsync()
             => await QueryAsync("*OPT?");
 
-        /// <summary>장비 전체 초기화 (3초 대기)</summary>
+        /// <summary>
+        /// 장비 전체 초기화.
+        /// 3→5초 대기: DSP 초기화에 충분한 시간 확보.
+        /// *RST 후 모든 설정이 공장 초기값으로 돌아감.
+        /// </summary>
         public async Task ResetAsync()
         {
             await SendAsync("*RST");
-            await Task.Delay(3000);
+            await Task.Delay(5000);  // 3→5초: DSP 초기화 충분 대기
         }
 
-        /// <summary>에러 큐 초기화</summary>
         public async Task ClearStatusAsync()
             => await SendAsync("*CLS");
 
-        /// <summary>Remote → Local 전환. HIL UDP 수신 전 필수 (매뉴얼 p.247)</summary>
         public async Task GoToLocalAsync()
             => await SendAsync("&GTL");
 
         // ════════════════════════════════════════════
-        // GNSS 초기화 시퀀스
+        // GNSS 초기화 시퀀스 (최적화)
         // ════════════════════════════════════════════
         //
-        // 매뉴얼 p.276 (Figure 18-1: General workflow) 기반 순서:
-        //
-        //  Step 1: PRESet          → GNSS 파라미터 초기화 (p.282)
-        //  Step 3: TMODe           → 테스트 모드 설정 (p.283)
-        //          ⚠ 반드시 위치 설정 전에! (p.32: 모드 전환 시 위성 파라미터 초기화)
-        //  Step 5: POSition        → 수신기 타입 설정 (p.305)
-        //          LOCation        → 좌표 설정 (p.303, 306-307)
-        //  Step 17: STATe 1        → 시뮬레이션 시작 (p.282)
-        //           OUTPut1:STATe  → RF 출력 ON (메인 매뉴얼 p.742)
-        //
-        // mode 파라미터 값: "STAT" | "MOV" | "HIL"
-        //   → 매뉴얼 p.305: POSition 값은 STAT | MOV | HIL
-        //   → 프론트패널 표시는 "Static" / "Moving" / "Remote Control (HIL)"
-        //   → SCPI에서 "REM"이 아니라 "HIL"임에 주의
+        // 변경 내역:
+        //   - PRESet 제거: *RST가 이미 전체 초기화함
+        //     PRESet을 추가하면 DSP가 두 번 초기화 → 부하
+        //   - STATe 1 후 5초 대기: HIL 모드는 Static보다 초기화 오래 걸림
+        //   - 에러 체크: *RST 후, STATe 1 후 에러 확인
+        //   - &GTL 제거: SCPI HIL은 TCP 유지 → Local 전환 불필요
         //
 
         public async Task InitGnssAsync(
-            string mode,        // "STAT" | "MOV" | "HIL"
+            string mode,
             double lat,
             double lon,
             double alt,
             int udpPort = 7755,
-            double latency = 0.02)
+            double latency = 0.15)
         {
-            // 1. 장비 초기화
-            await ResetAsync();             // *RST + 3초 대기
-            await ClearStatusAsync();       // *CLS
+            // 1. 장비 초기화 (*RST만, PRESet 안 함)
+            await ResetAsync();         // *RST + 5초 대기
+            await ClearStatusAsync();   // *CLS
 
-            // 2. GNSS 파라미터 초기화 (p.282)
-            await SendAsync(":SOURce1:BB:GNSS:PRESet");
-            await Task.Delay(1000);
+            // *RST 후 에러 확인 — 에러 있으면 여기서 중단
+            await CheckErrorAsync();
 
-            // 3. 테스트 모드 설정 (p.283)
-            //   반드시 위치 설정 전에! (p.32)
+            // 2. 추가 안정화 대기 (PRESet 제거한 대신)
+            await Task.Delay(2000);
+
+            // 3. 테스트 모드 설정 (반드시 좌표 전에!)
             await SendAsync(":SOURce1:BB:GNSS:TMODe NAV");
 
-            // 4. 수신기 타입 설정 (p.305)
+            // 4. 수신기 타입 설정
             await SendAsync($":SOURce1:BB:GNSS:RECeiver:V1:POSition {mode}");
 
-            // 5. 좌표 설정 (p.303 예제, p.306-307)
-            //    LOCation:SELect → RFRame → FORMat → 좌표 순서
+            // 5. 좌표 설정 (순서: 경도, 위도, 고도)
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:SELect \"User Defined\"");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:RFRame WGS84");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:FORMat DEC");
-            //    주의: 순서가 경도(Lon), 위도(Lat), 고도(Alt) (매뉴얼 p.307)
             await SendAsync(
                 $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS" +
                 $" {lon},{lat},{alt}");
 
-            // 6. HIL 모드 추가 설정 (p.251-256)
+            // 6. HIL 모드 추가 설정
             if (mode == "HIL")
             {
                 await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:HIL:ITYPe UDP");
@@ -182,36 +199,75 @@ namespace SMBVB_GNSS
                     $":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency {latency:F3}");
             }
 
-            // 추가
-            //await SendAsync($":SOURce1:POWer:LEVel:IMMediate:AMPLitude {level}");
-
-            // 7. GNSS 시뮬레이션 시작 (p.282)
+            // 7. 시뮬레이션 시작
             await SendAsync(":SOURce1:BB:GNSS:STATe 1");
-            await Task.Delay(2000);
+            await Task.Delay(5000);  // 2→5초: HIL 초기화 충분 대기
 
-            // 8. RF 출력 ON (메인 매뉴얼 p.742)
+            // STATe 1 후 에러 확인
+            await CheckErrorAsync();
+
+            // 8. RF 출력 ON
             await SendAsync(":OUTPut1:STATe 1");
 
-            // 9. HIL 모드일 때만 &GTL (p.247)
-            if (mode == "HIL")
-            {
-                await GoToLocalAsync();
-            }
+            // ⚠ &GTL 안 보냄!
+            // SCPI HIL: TCP 유지 → &GTL 불필요
+            // UDP HIL: Form1에서 타이밍 제어 후 보냄
         }
 
+        // ════════════════════════════════════════════
+        // SCPI HIL 위치 전송 (신규)
+        // ════════════════════════════════════════════
+        //
+        // 매뉴얼 p.256: MODE:A (ECEF 좌표)
+        //
+        // 형식: MODE:A elapsed,x,y,z,vx,vy,vz,ax,ay,az,yaw,pitch,roll
+        //   - elapsed: 시뮬레이션 경과 시간 [초]
+        //   - x,y,z: ECEF 위치 [미터]
+        //   - vx,vy,vz: ECEF 속도 [m/s]
+        //   - ax,ay,az: 가속도 [m/s²]
+        //   - yaw,pitch,roll: 자세 [rad]
+        //
+        // TCP 연결을 유지한 채로 전송하므로:
+        //   - &GTL 불필요
+        //   - HWTime을 매번 읽을 수 있음 → drift 없음
+        //   - DSP 부하 없음 (Remote 유지)
 
-        public async Task Config(double lat,double lon,double alt)
+        /// <summary>
+        /// SCPI HIL 위치 명령 전송 (MODE:A, ECEF)
+        /// </summary>
+        public async Task SendHilPositionAsync(
+            double elapsedTime,
+            double ecefX, double ecefY, double ecefZ,
+            double velX = 0, double velY = 0, double velZ = 0,
+            double accX = 0, double accY = 0, double accZ = 0,
+            double yaw = 0, double pitch = 0, double roll = 0)
         {
-            // 1. 장비 초기화
-            // 5. 좌표 설정 (p.303 예제, p.306-307)
-            //    LOCation:SELect → RFRame → FORMat → 좌표 순서
+            // CultureInfo.InvariantCulture: 소수점을 항상 .으로
+            string cmd =
+                $":SOURce1:BB:GNSS:RT:RECeiver:V1:HILPosition:MODE:A " +
+                string.Format(CultureInfo.InvariantCulture,
+                    "{0:F4},{1:F4},{2:F4},{3:F4},{4:F4},{5:F4},{6:F4},{7:F4},{8:F4},{9:F4},{10:F4},{11:F4},{12:F4}",
+                    elapsedTime,
+                    ecefX, ecefY, ecefZ,
+                    velX, velY, velZ,
+                    accX, accY, accZ,
+                    yaw, pitch, roll);
+
+            await SendAsync(cmd);
+        }
+
+        // ════════════════════════════════════════════
+        // 좌표만 변경 (*RST 없이)
+        // ════════════════════════════════════════════
+
+        public async Task ChangePositionAsync(double lat, double lon, double alt)
+        {
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:SELect \"User Defined\"");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:RFRame WGS84");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:FORMat DEC");
-            //    주의: 순서가 경도(Lon), 위도(Lat), 고도(Alt) (매뉴얼 p.307)
-            await SendAsync( $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS" + $" {lon},{lat},{alt}");
+            await SendAsync(
+                $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS {lon},{lat},{alt}");
         }
-
 
         // ════════════════════════════════════════════
         // GNSS 중지
@@ -227,27 +283,32 @@ namespace SMBVB_GNSS
         // 모니터링 쿼리
         // ════════════════════════════════════════════
 
-        /// <summary>설정 확인: "L1 / GPS only" 등 (p.283)</summary>
         public async Task<string> GetSimInfoAsync()
             => await QueryAsync(":SOURce1:BB:GNSS:SIMulation:INFO?");
 
-        /// <summary>PDOP 조회. 5 미만이면 양호 (p.514)</summary>
         public async Task<double> GetPdopAsync()
         {
             string response = await QueryAsync(":SOURce1:BB:GNSS:RT:PDOP?");
             return double.TryParse(response, out double pdop) ? pdop : 99.0;
         }
 
-        /// <summary>시뮬레이션 경과 시간. HIL 캘리브레이션용 (p.264)</summary>
         public async Task<double> GetHwTimeAsync()
         {
             string response = await QueryAsync(":SOURce1:BB:GNSS:RT:HWTime?");
-            return double.TryParse(response, out double t) ? t : 0.0;
+            return double.TryParse(response,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out double t) ? t : 0.0;
         }
 
-        /// <summary>HIL 레이턴시 통계 (p.256)</summary>
         public async Task<string> GetHilLatencyStatsAsync()
             => await QueryAsync(
                 ":SOURce1:BB:GNSS:RT:RECeiver:V1:HILPosition:LATency:STATistics?");
+
+        public async Task<double> GetLevelAsync()
+        {
+            string response = await QueryAsync(":SOURce1:POWer:LEVel:IMMediate:AMPLitude?");
+            return double.TryParse(response, out double level) ? level : -999;
+        }
     }
 }

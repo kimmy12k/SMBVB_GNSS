@@ -41,6 +41,7 @@
             btnGnssOn = new DevExpress.XtraEditors.SimpleButton();
             btnInitialize = new DevExpress.XtraEditors.SimpleButton();
             grControl = new DevExpress.XtraEditors.GroupControl();
+            btnConfig = new DevExpress.XtraEditors.SimpleButton();
             btnRfOff = new DevExpress.XtraEditors.SimpleButton();
             btnLoadCsv = new DevExpress.XtraEditors.SimpleButton();
             btnHilStop = new DevExpress.XtraEditors.SimpleButton();
@@ -70,6 +71,9 @@
             labelControl6 = new DevExpress.XtraEditors.LabelControl();
             labelControl2 = new DevExpress.XtraEditors.LabelControl();
             grGnssConfig = new DevExpress.XtraEditors.GroupControl();
+            btnReceiveChk = new DevExpress.XtraEditors.SimpleButton();
+            txtLevel = new DevExpress.XtraEditors.TextEdit();
+            labelControl10 = new DevExpress.XtraEditors.LabelControl();
             txtAlt = new DevExpress.XtraEditors.TextEdit();
             txtLon = new DevExpress.XtraEditors.TextEdit();
             txtLat = new DevExpress.XtraEditors.TextEdit();
@@ -83,7 +87,6 @@
             grLog = new DevExpress.XtraEditors.GroupControl();
             btnLogClear = new DevExpress.XtraEditors.SimpleButton();
             memoLog = new DevExpress.XtraEditors.MemoEdit();
-            btnConfig = new DevExpress.XtraEditors.SimpleButton();
             ((System.ComponentModel.ISupportInitialize)grNetwork).BeginInit();
             grNetwork.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picStatus.Properties).BeginInit();
@@ -98,6 +101,7 @@
             grHilMonitor.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)grGnssConfig).BeginInit();
             grGnssConfig.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)txtLevel.Properties).BeginInit();
             ((System.ComponentModel.ISupportInitialize)txtAlt.Properties).BeginInit();
             ((System.ComponentModel.ISupportInitialize)txtLon.Properties).BeginInit();
             ((System.ComponentModel.ISupportInitialize)txtLat.Properties).BeginInit();
@@ -143,6 +147,7 @@
             btnDisconnect.Size = new System.Drawing.Size(74, 30);
             btnDisconnect.TabIndex = 7;
             btnDisconnect.Text = "해제";
+            btnDisconnect.Click += btnDisconnect_Click;
             // 
             // btnConnect
             // 
@@ -244,6 +249,21 @@
             grControl.TabIndex = 24;
             grControl.Text = "Control";
             // 
+            // btnConfig
+            // 
+            btnConfig.Appearance.BackColor = System.Drawing.Color.Aqua;
+            btnConfig.Appearance.BorderColor = System.Drawing.Color.FromArgb(128, 255, 255);
+            btnConfig.Appearance.Font = new System.Drawing.Font("Candara", 9F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, 0);
+            btnConfig.Appearance.Options.UseBackColor = true;
+            btnConfig.Appearance.Options.UseBorderColor = true;
+            btnConfig.Appearance.Options.UseFont = true;
+            btnConfig.Location = new System.Drawing.Point(8, 71);
+            btnConfig.Name = "btnConfig";
+            btnConfig.Size = new System.Drawing.Size(108, 40);
+            btnConfig.TabIndex = 34;
+            btnConfig.Text = "Config";
+            btnConfig.Click += btnConfig_Click;
+            // 
             // btnRfOff
             // 
             btnRfOff.Location = new System.Drawing.Point(507, 71);
@@ -268,7 +288,7 @@
             // 
             // btnHilStop
             // 
-            btnHilStop.Location = new System.Drawing.Point(153, 70);
+            btnHilStop.Location = new System.Drawing.Point(153, 71);
             btnHilStop.Name = "btnHilStop";
             btnHilStop.Size = new System.Drawing.Size(116, 40);
             btnHilStop.TabIndex = 31;
@@ -507,6 +527,9 @@
             // 
             // grGnssConfig
             // 
+            grGnssConfig.Controls.Add(btnReceiveChk);
+            grGnssConfig.Controls.Add(txtLevel);
+            grGnssConfig.Controls.Add(labelControl10);
             grGnssConfig.Controls.Add(txtAlt);
             grGnssConfig.Controls.Add(txtLon);
             grGnssConfig.Controls.Add(txtLat);
@@ -522,6 +545,29 @@
             grGnssConfig.Size = new System.Drawing.Size(630, 114);
             grGnssConfig.TabIndex = 9;
             grGnssConfig.Text = "Gnss Configuration";
+            // 
+            // btnReceiveChk
+            // 
+            btnReceiveChk.Location = new System.Drawing.Point(264, 32);
+            btnReceiveChk.Name = "btnReceiveChk";
+            btnReceiveChk.Size = new System.Drawing.Size(83, 69);
+            btnReceiveChk.TabIndex = 35;
+            btnReceiveChk.Text = "UDP Check";
+            // 
+            // txtLevel
+            // 
+            txtLevel.Location = new System.Drawing.Point(102, 81);
+            txtLevel.Name = "txtLevel";
+            txtLevel.Size = new System.Drawing.Size(126, 20);
+            txtLevel.TabIndex = 11;
+            // 
+            // labelControl10
+            // 
+            labelControl10.Location = new System.Drawing.Point(27, 84);
+            labelControl10.Name = "labelControl10";
+            labelControl10.Size = new System.Drawing.Size(56, 14);
+            labelControl10.TabIndex = 10;
+            labelControl10.Text = "Level dBm";
             // 
             // txtAlt
             // 
@@ -638,21 +684,6 @@
             memoLog.Size = new System.Drawing.Size(292, 507);
             memoLog.TabIndex = 0;
             // 
-            // btnConfig
-            // 
-            btnConfig.Appearance.BackColor = System.Drawing.Color.Aqua;
-            btnConfig.Appearance.BorderColor = System.Drawing.Color.FromArgb(128, 255, 255);
-            btnConfig.Appearance.Font = new System.Drawing.Font("Candara", 9F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, 0);
-            btnConfig.Appearance.Options.UseBackColor = true;
-            btnConfig.Appearance.Options.UseBorderColor = true;
-            btnConfig.Appearance.Options.UseFont = true;
-            btnConfig.Location = new System.Drawing.Point(8, 71);
-            btnConfig.Name = "btnConfig";
-            btnConfig.Size = new System.Drawing.Size(108, 40);
-            btnConfig.TabIndex = 34;
-            btnConfig.Text = "Config";
-            btnConfig.Click += btnConfig_Click;
-            // 
             // Form1
             // 
             Appearance.BackColor = System.Drawing.Color.Linen;
@@ -688,6 +719,7 @@
             ((System.ComponentModel.ISupportInitialize)grGnssConfig).EndInit();
             grGnssConfig.ResumeLayout(false);
             grGnssConfig.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)txtLevel.Properties).EndInit();
             ((System.ComponentModel.ISupportInitialize)txtAlt.Properties).EndInit();
             ((System.ComponentModel.ISupportInitialize)txtLon.Properties).EndInit();
             ((System.ComponentModel.ISupportInitialize)txtLat.Properties).EndInit();
@@ -758,6 +790,9 @@
         private DevExpress.XtraEditors.MemoEdit memoLog;
         private DevExpress.XtraEditors.SimpleButton btnLogClear;
         private DevExpress.XtraEditors.SimpleButton btnConfig;
+        private DevExpress.XtraEditors.TextEdit txtLevel;
+        private DevExpress.XtraEditors.LabelControl labelControl10;
+        private DevExpress.XtraEditors.SimpleButton btnReceiveChk;
     }
 }
 

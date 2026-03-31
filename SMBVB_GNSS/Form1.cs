@@ -1,29 +1,31 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using DevExpress.DirectX.Common.Direct2D;
 using DevExpress.XtraEditors;
 
 namespace SMBVB_GNSS
 {
     public partial class Form1 : XtraForm
     {
-        // ── 상태 변수 ─────────────────────────────────
         private CancellationTokenSource _cts = null;
         private CancellationTokenSource _hilCts = null;
         private SMBVTCP _tcp;
         private UdpHilClient _hil;
-        private CsvRouteReader _route;  // CSV 경로 데이터
+        private CsvRouteReader _route;
 
+        private string _localIp = "169.254.2.21";
+        private string _deviceIp = "";
+        private int _scpiPort = 5025;
 
         private bool IsConnected => _tcp != null && _tcp.IsConnected;
 
         private static readonly string CFG_PATH =
             System.IO.Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory, "config.ini");//exe가 어디에 있든 같은 폴더에서 config.ini를 찾도록
+                AppDomain.CurrentDomain.BaseDirectory, "config.ini");
 
         // ════════════════════════════════════════════
         // 생성자
@@ -32,8 +34,8 @@ namespace SMBVB_GNSS
         {
             InitializeComponent();
             _tcp = new SMBVTCP();
-            LoadIni();
             InitCombos();
+            LoadIni();
             SetControlState(false);
             ClearStatus();
         }
@@ -43,8 +45,8 @@ namespace SMBVB_GNSS
         // ════════════════════════════════════════════
         private void InitCombos()
         {
-            comboTestMode.SelectedIndex = 0;    // NAV
-            comboPosition.SelectedIndex = 0;    // STAT
+            comboTestMode.SelectedIndex = 0;
+            comboPosition.SelectedIndex = 0;
             txtLat.Text = "0";
             txtLon.Text = "0";
             txtAlt.Text = "0";
@@ -57,6 +59,7 @@ namespace SMBVB_GNSS
 
             grGnssConfig.Enabled = connected;
             btnInitialize.Enabled = connected;
+            btnConfig.Enabled = connected;
             btnGnssOn.Enabled = connected;
             btnGnssOff.Enabled = connected;
             btnRfOn.Enabled = connected;
@@ -64,7 +67,7 @@ namespace SMBVB_GNSS
 
             bool isHil = comboPosition.Text == "HIL";
             btnLoadCsv.Enabled = connected && isHil;
-            btnHilStart.Enabled = false;        // CSV 로드 후에만 활성화
+            btnHilStart.Enabled = false;
             btnHilStop.Enabled = false;
         }
 
@@ -111,15 +114,15 @@ namespace SMBVB_GNSS
         // ════════════════════════════════════════════
         private void Log(string msg)
         {
-            if (InvokeRequired)//
+            if (InvokeRequired)
             {
                 Invoke(new Action(() => Log(msg)));
                 return;
             }
-            string line = $"[{DateTime.Now:HH:mm:ss}] {msg}";// 시간
-            memoLog.Text += line + Environment.NewLine;//
+            string line = $"[{DateTime.Now:HH:mm:ss}] {msg}";
+            memoLog.Text += line + Environment.NewLine;
             memoLog.SelectionStart = memoLog.Text.Length;
-            memoLog.ScrollToCaret();// 현 위치까지 스크롤
+            memoLog.ScrollToCaret();
         }
 
         // ════════════════════════════════════════════
@@ -135,13 +138,19 @@ namespace SMBVB_GNSS
 
             try
             {
-                string ip = txtIP.Text.Trim();
-                int scpiPort = int.Parse(txtScpiPort.Text.Trim());
+                _deviceIp = txtIP.Text.Trim();
+                _scpiPort = int.Parse(txtScpiPort.Text.Trim());
 
-                await _tcp.ConnectAsync(ip, scpiPort);
+                await _tcp.ConnectAsync(_deviceIp, _scpiPort);
+
+                _localIp = "169.254.2.21";
 
                 string idn = await _tcp.GetIdentityAsync();
                 string opts = await _tcp.GetOptionsAsync();
+
+                double currentLevel = await _tcp.GetLevelAsync();
+                txtLevel.Text = currentLevel.ToString("F1");
+                Log($"현재 Level: {currentLevel} dBm");
 
                 _cts = new CancellationTokenSource();
 
@@ -150,6 +159,7 @@ namespace SMBVB_GNSS
 
                 Log($"Connected: {idn}");
                 Log($"Options: {opts}");
+                Log($"Local IP: {_localIp}");
             }
             catch (Exception ex)
             {
@@ -179,10 +189,11 @@ namespace SMBVB_GNSS
             ClearStatus();
             Log("Disconnected");
         }
+
         private void Form1_Load(object sender, EventArgs e)
         {
-
         }
+
         // ════════════════════════════════════════════
         // Position 드롭다운
         // ════════════════════════════════════════════
@@ -214,8 +225,12 @@ namespace SMBVB_GNSS
                 int udpPort = int.Parse(txtUdpPort.Text.Trim());
 
                 Log("Initialize 시작...");
+                await _tcp.InitGnssAsync(mode, lat, lon, alt, udpPort);
 
-                await _tcp.InitGnssAsync(mode, lat, lon, alt,udpPort);
+                // Level 설정 (*RST가 초기화하므로 재설정)
+                string level = txtLevel.Text.Trim();
+                await _tcp.SendAsync($":SOURce1:BB:GNSS:POWer:REFerence {level}");
+                Log($"RF Level → {level} dBm");
 
                 string info = await _tcp.GetSimInfoAsync();
                 Log($"Initialize 완료: {info}");
@@ -235,6 +250,34 @@ namespace SMBVB_GNSS
         }
 
         // ════════════════════════════════════════════
+        // Config 버튼
+        // ════════════════════════════════════════════
+        private async void btnConfig_Click(object sender, EventArgs e)
+        {
+            if (!IsConnected) return;
+            if (!ValidateCoordinates()) return;
+            btnConfig.Enabled = false;
+            try
+            {
+                double lat = double.Parse(txtLat.Text, CultureInfo.InvariantCulture);
+                double lon = double.Parse(txtLon.Text, CultureInfo.InvariantCulture);
+                double alt = double.Parse(txtAlt.Text, CultureInfo.InvariantCulture);
+
+                Log("좌표 변경 중...");
+                await _tcp.ChangePositionAsync(lat, lon, alt);
+                Log($"좌표 변경 완료: {lat}, {lon}, {alt}");
+            }
+            catch (Exception ex)
+            {
+                Log($"좌표 변경 실패: {ex.Message}");
+            }
+            finally
+            {
+                btnConfig.Enabled = true;
+            }
+        }
+
+        // ════════════════════════════════════════════
         // GNSS ON / OFF
         // ════════════════════════════════════════════
         private async void btnGnssOn_Click(object sender, EventArgs e)
@@ -249,6 +292,7 @@ namespace SMBVB_GNSS
             }
             catch (Exception ex) { Log($"GNSS ON 실패: {ex.Message}"); }
         }
+
         private async void btnGnssOff_Click(object sender, EventArgs e)
         {
             if (!IsConnected) return;
@@ -290,13 +334,10 @@ namespace SMBVB_GNSS
             }
             catch (Exception ex) { Log($"RF OFF 실패: {ex.Message}"); }
         }
+
         // ════════════════════════════════════════════
         // CSV 파일 로드 버튼
         // ════════════════════════════════════════════
-        //
-        // HIL Start 전에 반드시 경로 파일을 먼저 로드해야 함
-        // CSV 형식: Time,Latitude,Longitude,Altitude
-        //
         private void btnLoadCsv_Click(object sender, EventArgs e)
         {
             using var dlg = new OpenFileDialog
@@ -313,7 +354,6 @@ namespace SMBVB_GNSS
                 _route = new CsvRouteReader();
                 _route.Load(dlg.FileName);
 
-                // 첫 번째 포인트 좌표를 UI에 표시
                 var first = _route.GetAt(0);
                 txtLat.Text = first.Latitude.ToString("F6", CultureInfo.InvariantCulture);
                 txtLon.Text = first.Longitude.ToString("F6", CultureInfo.InvariantCulture);
@@ -331,18 +371,23 @@ namespace SMBVB_GNSS
                     "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         // ════════════════════════════════════════════
-        // HIL Start
+        // HIL Start — SCPI HIL 방식
         // ════════════════════════════════════════════
         //
-        // 흐름:
-        //   CSV 한 줄 읽기
-        //   → WGS84→ECEF 변환 (CoordConverter.cs)
-        //   → 216B 패킷 생성 (HilPacket.cs)
-        //   → UDP 전송 (UdpHilClient.cs)
-        //   → 100ms 대기
-        //   → 다음 줄 ...
-        //   → CSV 끝 → 자동 종료
+        // 핵심: TCP 연결을 유지한 채로 SCPI 명령으로 위치 전송
+        //
+        // 장점 (vs UDP 방식):
+        //   ① TCP 닫기/열기 없음 → DSP 부하 없음
+        //   ② HWTime을 매번 읽음 → drift 없음
+        //   ③ &GTL 불필요 → Remote 유지
+        //   ④ 캘리브레이션 불필요 → 코드 단순
+        //   ⑤ Initialize 직후 바로 전송 가능
+        //
+        // 단점:
+        //   SCPI 명령이 UDP보다 느림 (최대 약 10Hz)
+        //   → intervalMs를 1000ms(1Hz)로 사용하면 문제 없음
         //
         private async void btnHilStart_Click(object sender, EventArgs e)
         {
@@ -354,83 +399,136 @@ namespace SMBVB_GNSS
                 return;
             }
 
-            int udpPort = int.Parse(txtUdpPort.Text.Trim());
-
-            // UdpHilClient 생성
-            _hil = new UdpHilClient(txtIP.Text.Trim(), udpPort);
-
-            // UI 업데이트 이벤트
-            _hil.OnPacketSent += (count, elapsed, lat, lon, alt, remaining) =>
-            {
-                if (InvokeRequired)
-                {
-                    BeginInvoke(new Action(() =>
-                    {
-                        lblPacketCount.Text = count.ToString("N0");
-                        lblLatency.Text = $"{(elapsed / count):F1} ms";
-                        lblHilStatus.Text = $"{remaining} left";
-
-                        // 현재 전송 중인 좌표를 UI에 실시간 표시
-                        txtLat.Text = lat.ToString("F6", CultureInfo.InvariantCulture);
-                        txtLon.Text = lon.ToString("F6", CultureInfo.InvariantCulture);
-                        txtAlt.Text = alt.ToString("F0", CultureInfo.InvariantCulture);
-                    }));
-                }
-            };
-
-            // 경로 재생 완료 이벤트
-            _hil.OnRouteFinished += (totalPackets) =>
-            {
-                if (InvokeRequired)
-                {
-                    BeginInvoke(new Action(() =>
-                    {
-                        Log($"경로 재생 완료: 총 {totalPackets:N0} 패킷 전송");
-                        lblHilStatus.Text = "FINISHED";
-                        lblHilStatus.ForeColor = Color.FromArgb(21, 101, 192);
-                    }));
-                }
-            };
-
-            _hil.OnError += (msg) => Log($"HIL Error: {msg}");
-
-            // 버튼 상태
+            // 버튼 상태 전환
             btnHilStart.Enabled = false;
             btnHilStop.Enabled = true;
             btnInitialize.Enabled = false;
             btnLoadCsv.Enabled = false;
+            btnConfig.Enabled = false;
+            btnGnssOn.Enabled = false;
+            btnGnssOff.Enabled = false;
+            btnRfOn.Enabled = false;
+            btnRfOff.Enabled = false;
 
             _hilCts = new CancellationTokenSource();
-            int intervalMs = 100; // 10Hz
+            int intervalMs = 1000; // 1Hz (SCPI HIL 권장 속도)
 
-            Log($"HIL 시작: {_route.Count}개 포인트 / {intervalMs}ms 주기");
+            _route.ResetIndex();
+            lblPacketCount.Text = "0";
+            lblLatency.Text = "-";
             lblHilStatus.Text = "RUNNING";
             lblHilStatus.ForeColor = Color.FromArgb(46, 125, 50);
             lblUpdateRate.Text = $"{1000 / intervalMs} Hz";
-            lblUdpPort.Text = udpPort.ToString();
-            // CSV 경로 처음부터
-            _route.ResetIndex();
+            lblUdpPort.Text = "SCPI";  // UDP가 아니라 SCPI 방식
+
+            long packetCount = 0;
+            var totalWatch = new Stopwatch();
+            var loopWatch = new Stopwatch();
+            totalWatch.Start();
+
+            Log($"HIL 시작 (SCPI): {_route.Count}개 포인트 / {intervalMs}ms 주기");
+
             try
             {
-                await _hil.StartAsync(_route, intervalMs, _hilCts.Token);
+                while (!_route.IsFinished &&
+                       !_hilCts.Token.IsCancellationRequested)
+                {
+                    loopWatch.Restart();
+
+                    // ① CSV에서 다음 좌표 읽기
+                    var pt = _route.GetNext();
+
+                    // ② WGS84 → ECEF 변환
+                    CoordConverter.ToECEF(
+                        pt.Latitude, pt.Longitude, pt.Altitude,
+                        out double x, out double y, out double z);
+
+                    // ③ HWTime 읽기 (매번! → drift 없음)
+                    double hwTime = await _tcp.GetHwTimeAsync();
+
+                    // ④ ElapsedTime = HWTime + 0.2초 (살짝 미래)
+                    //    매번 현재 시간을 읽으니까 drift가 누적되지 않음
+                    double elapsed = hwTime + 0.2;
+
+                    // ⑤ SCPI HIL 명령 전송 (TCP 유지!)
+                    await _tcp.SendHilPositionAsync(elapsed, x, y, z);
+
+                    // ⑥ UI 업데이트
+                    packetCount++;
+                    int remaining = _route.Count - _route.CurrentIndex;
+
+                    BeginInvoke(new Action(() =>
+                    {
+                        lblPacketCount.Text = packetCount.ToString("N0");
+                        lblLatency.Text = $"{loopWatch.ElapsedMilliseconds} ms";
+                        lblHilStatus.Text = $"{remaining} left";
+
+                        txtLat.Text = pt.Latitude.ToString("F6", CultureInfo.InvariantCulture);
+                        txtLon.Text = pt.Longitude.ToString("F6", CultureInfo.InvariantCulture);
+                        txtAlt.Text = pt.Altitude.ToString("F0", CultureInfo.InvariantCulture);
+                    }));
+
+                    // ⑦ 정확한 주기 유지
+                    int loopMs = (int)loopWatch.ElapsedMilliseconds;
+                    int delay = intervalMs - loopMs;
+                    if (delay > 0)
+                        await Task.Delay(delay, _hilCts.Token);
+                }
+
+                // CSV 끝 도달 → 완료
+                Log($"경로 재생 완료: 총 {packetCount:N0} 패킷 전송");
+                BeginInvoke(new Action(() =>
+                {
+                    lblHilStatus.Text = "FINISHED";
+                    lblHilStatus.ForeColor = Color.FromArgb(21, 101, 192);
+                }));
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                Log("HIL 사용자 중지");
+            }
+            catch (Exception ex)
+            {
+                Log($"HIL 에러: {ex.Message}");
+            }
             finally
             {
+                totalWatch.Stop();
+
                 if (lblHilStatus.Text != "FINISHED")
                 {
                     lblHilStatus.Text = "STOPPED";
                     lblHilStatus.ForeColor = Color.FromArgb(198, 40, 40);
                 }
-                Log($"HIL 종료: {_hil.PacketCount:N0} 패킷 전송");
+                Log($"HIL 종료: {packetCount:N0} 패킷 / {totalWatch.Elapsed.TotalSeconds:F1}초");
+
+                // TCP 유지 중이므로 바로 통계 확인 가능!
+                try
+                {
+                    string stats = await _tcp.GetHilLatencyStatsAsync();
+                    Log($"HIL 통계: {stats}");
+
+                    string err = await _tcp.GetErrorAsync();
+                    Log($"장비 에러: {err}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"통계 확인 실패: {ex.Message}");
+                }
+
+                // 버튼 복구
                 btnHilStart.Enabled = true;
                 btnHilStop.Enabled = false;
                 btnInitialize.Enabled = true;
                 btnLoadCsv.Enabled = true;
-                _hil?.Dispose();
-                _hil = null;
+                btnConfig.Enabled = true;
+                btnGnssOn.Enabled = true;
+                btnGnssOff.Enabled = true;
+                btnRfOn.Enabled = true;
+                btnRfOff.Enabled = true;
             }
         }
+
         // ════════════════════════════════════════════
         // HIL Stop
         // ════════════════════════════════════════════
@@ -438,7 +536,6 @@ namespace SMBVB_GNSS
         {
             StopHil();
         }
-
         private void StopHil()
         {
             _hilCts?.Cancel();
@@ -446,12 +543,35 @@ namespace SMBVB_GNSS
         }
 
         // ════════════════════════════════════════════
+        // HIL Check
+        // ════════════════════════════════════════════
+        private async void btnHilCheck_Click(object sender, EventArgs e)
+        {
+            if (!IsConnected) return;
+            try
+            {
+                string stats = await _tcp.GetHilLatencyStatsAsync();
+                Log($"HIL 통계: {stats}");
+
+                double hwTime = await _tcp.GetHwTimeAsync();
+                Log($"시뮬레이션 시간: {hwTime:F2}초");
+
+                string err = await _tcp.GetErrorAsync();
+                Log($"장비 에러: {err}");
+            }
+            catch (Exception ex)
+            {
+                Log($"HIL 확인 실패: {ex.Message}");
+            }
+        }
+        // ════════════════════════════════════════════
         // Log Clear
         // ════════════════════════════════════════════
         private void btnLogClear_Click(object sender, EventArgs e)
         {
             memoLog.Text = string.Empty;
         }
+
         // ════════════════════════════════════════════
         // Status
         // ════════════════════════════════════════════
@@ -471,6 +591,7 @@ namespace SMBVB_GNSS
             lblTestMode.Text = mode;
             lblSimInfo.Text = info;
         }
+
         private void ClearStatus()
         {
             lblGnssState.Text = "-"; lblGnssState.ForeColor = Color.Gray;
@@ -479,6 +600,7 @@ namespace SMBVB_GNSS
             lblPacketCount.Text = "0"; lblUpdateRate.Text = "-";
             lblLatency.Text = "-"; lblHilStatus.Text = "-"; lblUdpPort.Text = "-";
         }
+
         // ════════════════════════════════════════════
         // 검증
         // ════════════════════════════════════════════
@@ -506,7 +628,6 @@ namespace SMBVB_GNSS
 
         private void DrawStatusDot(Color color)
         {
-            // 이전 이미지 메모리 해제
             var old = picStatus.Image;
             var bmp = new Bitmap(16, 16);
             using var g = Graphics.FromImage(bmp);
@@ -515,8 +636,9 @@ namespace SMBVB_GNSS
             using var brush = new SolidBrush(color);
             g.FillEllipse(brush, 2, 2, 12, 12);
             picStatus.Image = bmp;
-            old?.Dispose();  // 이전 이미지 해제
+            old?.Dispose();
         }
+
         // ════════════════════════════════════════════
         // 폼 종료
         // ════════════════════════════════════════════
@@ -528,23 +650,6 @@ namespace SMBVB_GNSS
             _tcp?.Disconnect();
             SaveIni();
             base.OnFormClosing(e);
-        }
-
-        private async void btnConfig_Click(object sender, EventArgs e)
-        {
-
-            double lat = double.Parse(txtLat.Text, CultureInfo.InvariantCulture);
-            double lon = double.Parse(txtLon.Text, CultureInfo.InvariantCulture);
-            double alt = double.Parse(txtAlt.Text, CultureInfo.InvariantCulture);
-
-
-            Log("Initialize 시작...");
-
-            await _tcp.Config( lat, lon, alt);
-
-            string info = await _tcp.GetSimInfoAsync();
-            Log($"Initialize 완료: {info}");
-            UpdateStatus("ON", "ON", comboTestMode.Text, info);
         }
     }
 }
