@@ -71,7 +71,6 @@
             labelControl6 = new DevExpress.XtraEditors.LabelControl();
             labelControl2 = new DevExpress.XtraEditors.LabelControl();
             grGnssConfig = new DevExpress.XtraEditors.GroupControl();
-            btnReceiveChk = new DevExpress.XtraEditors.SimpleButton();
             txtLevel = new DevExpress.XtraEditors.TextEdit();
             labelControl10 = new DevExpress.XtraEditors.LabelControl();
             txtAlt = new DevExpress.XtraEditors.TextEdit();
@@ -527,7 +526,6 @@
             // 
             // grGnssConfig
             // 
-            grGnssConfig.Controls.Add(btnReceiveChk);
             grGnssConfig.Controls.Add(txtLevel);
             grGnssConfig.Controls.Add(labelControl10);
             grGnssConfig.Controls.Add(txtAlt);
@@ -545,14 +543,6 @@
             grGnssConfig.Size = new System.Drawing.Size(630, 114);
             grGnssConfig.TabIndex = 9;
             grGnssConfig.Text = "Gnss Configuration";
-            // 
-            // btnReceiveChk
-            // 
-            btnReceiveChk.Location = new System.Drawing.Point(264, 32);
-            btnReceiveChk.Name = "btnReceiveChk";
-            btnReceiveChk.Size = new System.Drawing.Size(83, 69);
-            btnReceiveChk.TabIndex = 35;
-            btnReceiveChk.Text = "UDP Check";
             // 
             // txtLevel
             // 
@@ -792,7 +782,6 @@
         private DevExpress.XtraEditors.SimpleButton btnConfig;
         private DevExpress.XtraEditors.TextEdit txtLevel;
         private DevExpress.XtraEditors.LabelControl labelControl10;
-        private DevExpress.XtraEditors.SimpleButton btnReceiveChk;
     }
 }
 

@@ -186,17 +186,14 @@ namespace SMBVB_GNSS
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:SELect \"User Defined\"");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:RFRame WGS84");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:FORMat DEC");
-            await SendAsync(
-                $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS" +
-                $" {lon},{lat},{alt}");
+            await SendAsync( $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS" + $" {lon},{lat},{alt}");
 
             // 6. HIL 모드 추가 설정
             if (mode == "HIL")
             {
                 await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:HIL:ITYPe UDP");
                 await SendAsync($":SOURce1:BB:GNSS:RECeiver:V1:HIL:PORT {udpPort}");
-                await SendAsync(
-                    $":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency {latency:F3}");
+                await SendAsync($":SOURce1:BB:GNSS:RECeiver:V1:HIL:SLATency {latency:F3}");
             }
 
             // 7. 시뮬레이션 시작
@@ -265,8 +262,7 @@ namespace SMBVB_GNSS
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:SELect \"User Defined\"");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:RFRame WGS84");
             await SendAsync(":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:FORMat DEC");
-            await SendAsync(
-                $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS {lon},{lat},{alt}");
+            await SendAsync( $":SOURce1:BB:GNSS:RECeiver:V1:LOCation:COORdinates:DEC:WGS {lon},{lat},{alt}");
         }
 
         // ════════════════════════════════════════════
@@ -302,12 +298,11 @@ namespace SMBVB_GNSS
         }
 
         public async Task<string> GetHilLatencyStatsAsync()
-            => await QueryAsync(
-                ":SOURce1:BB:GNSS:RT:RECeiver:V1:HILPosition:LATency:STATistics?");
+            => await QueryAsync( ":SOURce1:BB:GNSS:RT:RECeiver:V1:HILPosition:LATency:STATistics?");
 
         public async Task<double> GetLevelAsync()
         {
-            string response = await QueryAsync(":SOURce1:POWer:LEVel:IMMediate:AMPLitude?");
+            string response = await QueryAsync(":SOURce1:POWer:LEVel:IMMediate:AMPLitude?");//지금 LEVEL
             return double.TryParse(response, out double level) ? level : -999;
         }
     }

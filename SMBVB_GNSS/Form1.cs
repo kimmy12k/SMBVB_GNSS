@@ -143,8 +143,6 @@ namespace SMBVB_GNSS
 
                 await _tcp.ConnectAsync(_deviceIp, _scpiPort);
 
-                _localIp = "169.254.2.21";
-
                 string idn = await _tcp.GetIdentityAsync();
                 string opts = await _tcp.GetOptionsAsync();
 
