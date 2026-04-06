@@ -420,13 +420,13 @@ namespace SMBVB_GNSS
             lblUdpPort.Text = "SCPI";  // UDP가 아니라 SCPI 방식
 
             long packetCount = 0;
-            var totalWatch = new Stopwatch();
-            var loopWatch = new Stopwatch();
+            var totalWatch = new Stopwatch();//전체 HIL 실행 시간
+            var loopWatch = new Stopwatch();//루프 1회 소요 시간
             totalWatch.Start();
 
             Log($"HIL 시작 (SCPI): {_route.Count}개 포인트 / {intervalMs}ms 주기");
 
-            try
+            try // 247page
             {
                 while (!_route.IsFinished &&
                        !_hilCts.Token.IsCancellationRequested)
@@ -441,19 +441,21 @@ namespace SMBVB_GNSS
                         pt.Latitude, pt.Longitude, pt.Altitude,
                         out double x, out double y, out double z);
 
-                    // ③ HWTime 읽기 (매번! → drift 없음)
+                    // ③ HWTime 읽기 (매번! → drift 없음)  // Step4
                     double hwTime = await _tcp.GetHwTimeAsync();
 
                     // ④ ElapsedTime = HWTime + 0.2초 (살짝 미래)
-                    //    매번 현재 시간을 읽으니까 drift가 누적되지 않음
-                    double elapsed = hwTime + 0.2;
+                    //    매번 현재 시간을 읽으니까 drift가 누적되지 않음 
+                    double elapsed = hwTime + 0.2; // 현재 시간을 장비에 알려주기 위해 // 매뉴얼에 정의된 변수명 
 
                     // ⑤ SCPI HIL 명령 전송 (TCP 유지!)
                     await _tcp.SendHilPositionAsync(elapsed, x, y, z);
 
+                //매뉴얼:  전송 → 통계 조회 → 오프셋 재보정 → 전송 → 통계 조회 → ...
+                //우리: 전송 → 전송 → 전송 → ... → 끝나고 통계 조회(1번만)
                     // ⑥ UI 업데이트
                     packetCount++;
-                    int remaining = _route.Count - _route.CurrentIndex;
+                    int remaining = _route.Count - _route.CurrentIndex;//CSV에 총 몇 줄이 있는지-지금까지 몇 줄 읽었는지
 
                     BeginInvoke(new Action(() =>
                     {
@@ -468,7 +470,7 @@ namespace SMBVB_GNSS
 
                     // ⑦ 정확한 주기 유지
                     int loopMs = (int)loopWatch.ElapsedMilliseconds;
-                    int delay = intervalMs - loopMs;
+                    int delay = intervalMs - loopMs;// 목표시간 - 이번에 걸린시간
                     if (delay > 0)
                         await Task.Delay(delay, _hilCts.Token);
                 }

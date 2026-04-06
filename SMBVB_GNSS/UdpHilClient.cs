@@ -10,14 +10,22 @@ namespace SMBVB_GNSS
     /// <summary>
     /// HIL 모드 UDP 전송 클라이언트
     /// 
-    /// 변경 이력:
-    ///   - 로컬 IP 바인딩 추가 (169.254.x.x 대역 라우팅 문제 해결)
-    ///   - HWTime 오프셋 추가 (장비 시뮬레이션 시간 기준 전송)
+    /// ★ ElapsedTime 동기화 원리:
     /// 
-    /// 핵심 원리:
     ///   장비는 시뮬레이션 시작 후 자체 시계(HWTime)가 돌고 있음.
-    ///   UDP 패킷의 ElapsedTime이 HWTime보다 과거이면 무시됨.
-    ///   따라서 ElapsedTime = HWTime + CSV의 Time 으로 보내야 함.
+    ///   UDP 패킷의 ElapsedTime이 현재 HWTime보다 과거이면 "too old"로 무시됨.
+    ///   
+    ///   해결:
+    ///     1. Form1에서 HWTime을 읽은 직후 Stopwatch 시작
+    ///     2. ElapsedTime = HWTime(읽은 시점) + Stopwatch 경과시간
+    ///     3. 이러면 TCP 닫기/대기 시간이 자동으로 보정됨
+    ///   
+    ///   타임라인:
+    ///     [HWTime 읽기] → [&GTL] → [TCP 닫기] → [1초 대기] → [UDP 시작]
+    ///     t=0              t=0.2    t=0.3        t=1.3         t=1.3
+    ///     HWTime=50        ↓        ↓             ↓             ↓
+    ///                     Stopwatch가 여기서부터 시간을 셈
+    ///                     ElapsedTime = 50 + 1.3 = 51.3 (현재 장비 시간과 일치!)
     /// </summary>
     internal class UdpHilClient : IDisposable
     {
@@ -30,18 +38,10 @@ namespace SMBVB_GNSS
         private long _packetCount;
         private readonly Stopwatch _totalStopwatch = new Stopwatch();
 
-        // ── 이벤트 ──
         public event Action<long, double, double, double, double, int> OnPacketSent;
         public event Action<string> OnError;
         public event Action<long> OnRouteFinished;
 
-        /// <summary>
-        /// UDP HIL 클라이언트 생성
-        /// </summary>
-        /// <param name="targetIp">장비 IP (169.254.2.20)</param>
-        /// <param name="port">UDP 포트 (7755)</param>
-        /// <param name="localIp">PC의 로컬 IP (169.254.2.21). 
-        /// 빈 문자열이면 자동 라우팅.</param>
         public UdpHilClient(string targetIp, int port, string localIp = "")
         {
             _targetIp = targetIp;
@@ -55,23 +55,23 @@ namespace SMBVB_GNSS
         /// </summary>
         /// <param name="route">CSV 경로 데이터</param>
         /// <param name="intervalMs">전송 주기 (ms)</param>
-        /// <param name="hwTimeOffset">장비의 HWTime 값. 
-        /// ElapsedTime = hwTimeOffset + CSV의 Time</param>
+        /// <param name="hwTimeOffset">HWTime 읽은 시점의 값</param>
+        /// <param name="syncWatch">HWTime 읽은 직후 시작된 Stopwatch</param>
         /// <param name="cancelToken">취소 토큰</param>
         public async Task StartAsync(
             CsvRouteReader route,
             int intervalMs,
             double hwTimeOffset,
+            Stopwatch syncWatch,
             CancellationToken cancelToken)
         {
             if (intervalMs < 20)
-                throw new ArgumentException(
-                    "전송 주기는 최소 20ms (매뉴얼 p.246)");
+                throw new ArgumentException("전송 주기는 최소 20ms");
 
             if (route == null || route.Count == 0)
                 throw new ArgumentException("경로 데이터가 없습니다.");
 
-            // 로컬 IP 바인딩 (link-local 대역 라우팅 문제 해결)
+            // 로컬 IP 바인딩
             try
             {
                 if (!string.IsNullOrEmpty(_localIp))
@@ -82,7 +82,7 @@ namespace SMBVB_GNSS
             }
             catch
             {
-                _udp = new UdpClient();  // 바인딩 실패하면 자동 라우팅
+                _udp = new UdpClient();  // 바인딩 실패 시 자동 라우팅
             }
 
             _packetCount = 0;
@@ -105,9 +105,12 @@ namespace SMBVB_GNSS
                         pt.Latitude, pt.Longitude, pt.Altitude,
                         out double x, out double y, out double z);
 
-                    // ③ ElapsedTime = HWTime + CSV의 Time
-                    //    장비의 시뮬레이션 시간 기준으로 보내야 인식됨
-                    double elapsedSec = hwTimeOffset + _totalStopwatch.Elapsed.TotalSeconds;
+                    // ③ ★ ElapsedTime 계산 (핵심!)
+                    //    HWTime(읽은 시점) + syncWatch 경과시간
+                    //    syncWatch는 HWTime 읽은 직후 시작됨 → 자동 보정
+                    //    pt.Time은 사용하지 않음 (장비 시간과 무관)
+                    double elapsedSec = hwTimeOffset
+                                      + syncWatch.Elapsed.TotalSeconds;
 
                     // ④ 216바이트 패킷 생성 (16바이트 예약 포함)
                     byte[] packet = HilPacket.Build(
@@ -119,18 +122,15 @@ namespace SMBVB_GNSS
                     // ⑤ UDP 전송
                     await _udp.SendAsync(packet, packet.Length, _endpoint);
 
-                    // ⑥ 통계 + 이벤트
+                    // ⑥ 통계 + 이벤트 (매번 호출 — 1Hz라 부하 없음)
                     _packetCount++;
                     int remaining = route.Count - route.CurrentIndex;
 
-                    if (true)
-                    {
-                        OnPacketSent?.Invoke(
-                            _packetCount,
-                            _totalStopwatch.Elapsed.TotalMilliseconds,
-                            pt.Latitude, pt.Longitude, pt.Altitude,
-                            remaining);
-                    }
+                    OnPacketSent?.Invoke(
+                        _packetCount,
+                        _totalStopwatch.Elapsed.TotalMilliseconds,
+                        pt.Latitude, pt.Longitude, pt.Altitude,
+                        remaining);
 
                     // ⑦ 정확한 주기 유지
                     int elapsed = (int)loopWatch.ElapsedMilliseconds;

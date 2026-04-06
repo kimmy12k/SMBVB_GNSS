@@ -141,7 +141,7 @@ namespace SMBVB_GNSS
         }
 
         /// <summary>전체 경로의 총 시간 (초)</summary>
-        public double TotalDuration
+        public double TotalDuration//전체 경로가 몇 인지
         {
             get
             {
